@@ -352,4 +352,18 @@
   .border.hover-elevate:not(.no-hover-interaction-elevate)::after {
     inset: -1px;
   }
+
+  /* Button zoom animation on hover */
+  button:hover {
+    transform: scale(1.02);
+    transition: transform 0.2s ease-in-out;
+  }
+
+  button:active {
+    transform: scale(0.98);
+  }
+
+  button {
+    transition: transform 0.2s ease-in-out;
+  }
 }

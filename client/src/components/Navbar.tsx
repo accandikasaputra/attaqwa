@@ -25,12 +25,14 @@ export default function Navbar() {
 
   return (
     <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${
-      isScrolled ? 'bg-background shadow-md' : 'bg-background/95 backdrop-blur-sm'
+      isScrolled ? 'bg-background shadow-md' : 'bg-emerald-800/95 backdrop-blur-sm'
     }`}>
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
         <div className="flex justify-between items-center h-20">
           <Link href="/" className="flex items-center">
-            <span className="text-3xl font-bold text-primary">
+            <span className={`text-3xl font-bold transition-colors duration-300 ${
+              isScrolled ? 'text-primary' : 'text-white'
+            }`}>
               At-Taqwa
             </span>
           </Link>
@@ -40,17 +42,18 @@ export default function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-              >
-                <a
-                  data-testid={`link-nav-${link.label.toLowerCase().replace(' ', '-')}`}
-                  className={`text-[15px] font-medium transition-colors ${
-                    location === link.href
+                data-testid={`link-nav-${link.label.toLowerCase().replace(' ', '-')}`}
+                className={`text-[15px] font-medium transition-colors ${
+                  isScrolled
+                    ? location === link.href
                       ? 'text-primary'
                       : 'text-foreground hover:text-primary'
-                  }`}
-                >
-                  {link.label}
-                </a>
+                    : location === link.href
+                      ? 'text-white font-semibold'
+                      : 'text-white/90 hover:text-white'
+                }`}
+              >
+                {link.label}
               </Link>
             ))}
           </div>
@@ -58,7 +61,7 @@ export default function Navbar() {
           <Button
             variant="ghost"
             size="icon"
-            className="md:hidden"
+            className={`md:hidden ${isScrolled ? '' : 'text-white hover:text-white'}`}
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             data-testid="button-mobile-menu"
           >
@@ -68,24 +71,25 @@ export default function Navbar() {
       </div>
 
       {isMobileMenuOpen && (
-        <div className="md:hidden bg-background border-t">
+        <div className={`md:hidden border-t ${isScrolled ? 'bg-background' : 'bg-emerald-800'}`}>
           <div className="px-6 py-4 space-y-3">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-              >
-                <a
-                  data-testid={`link-mobile-${link.label.toLowerCase().replace(' ', '-')}`}
-                  className={`block py-2 font-medium ${
-                    location === link.href
+                data-testid={`link-mobile-${link.label.toLowerCase().replace(' ', '-')}`}
+                className={`block py-2 font-medium ${
+                  isScrolled
+                    ? location === link.href
                       ? 'text-primary'
                       : 'text-foreground hover:text-primary'
-                  }`}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  {link.label}
-                </a>
+                    : location === link.href
+                      ? 'text-white font-semibold'
+                      : 'text-white/90 hover:text-white'
+                }`}
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                {link.label}
               </Link>
             ))}
           </div>

@@ -44,13 +44,13 @@ export default function Footer() {
               <li className="flex items-start gap-2 text-sm">
                 <MapPin className="h-4 w-4 mt-0.5 text-emerald-400 flex-shrink-0" />
                 <span className="text-gray-300">
-                  Jl. Raya Masjid No. 123, Jakarta Selatan
+                  Perum. Ciomashills Blok H-J, Ciapus Kab. Bogor
                 </span>
               </li>
               <li className="flex items-center gap-2 text-sm">
                 <Phone className="h-4 w-4 text-emerald-400 flex-shrink-0" />
                 <span className="text-gray-300">
-                  (021) 1234-5678
+                  081212707907
                 </span>
               </li>
               <li className="flex items-center gap-2 text-sm">

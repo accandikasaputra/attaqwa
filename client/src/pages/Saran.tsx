@@ -34,7 +34,7 @@ export default function Saran() {
                     <div>
                       <p className="font-medium">Alamat</p>
                       <p className="text-sm text-muted-foreground">
-                        Jl. Raya Masjid No. 123, Jakarta Selatan
+                        Perum. Ciomashills Blok H-J, Ciapus Kab. Bogor
                       </p>
                     </div>
                   </div>
@@ -44,7 +44,7 @@ export default function Saran() {
                     <div>
                       <p className="font-medium">Telepon</p>
                       <p className="text-sm text-muted-foreground">
-                        (021) 1234-5678
+                        081212707907
                       </p>
                     </div>
                   </div>
