@@ -1,0 +1,89 @@
+import Navbar from '@/components/Navbar';
+import Footer from '@/components/Footer';
+import FeedbackForm from '@/components/FeedbackForm';
+import { Card, CardContent } from '@/components/ui/card';
+import { MapPin, Phone, Mail, Clock } from 'lucide-react';
+
+export default function Saran() {
+  return (
+    <div className="min-h-screen flex flex-col">
+      <Navbar />
+      <main className="flex-1 pt-20">
+        <div className="bg-primary text-primary-foreground py-12 md:py-16">
+          <div className="max-w-7xl mx-auto px-6 lg:px-8">
+            <h1 className="text-4xl md:text-5xl font-bold mb-4">Saran & Masukan</h1>
+            <p className="text-lg text-primary-foreground/90">
+              Kami menghargai setiap saran dan masukan dari Anda
+            </p>
+          </div>
+        </div>
+
+        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-16">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2">
+              <FeedbackForm />
+            </div>
+
+            <div className="space-y-6">
+              <Card>
+                <CardContent className="pt-6 space-y-4">
+                  <h3 className="text-xl font-semibold mb-4">Informasi Kontak</h3>
+                  
+                  <div className="flex items-start gap-3">
+                    <MapPin className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="font-medium">Alamat</p>
+                      <p className="text-sm text-muted-foreground">
+                        Jl. Raya Masjid No. 123, Jakarta Selatan
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <Phone className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="font-medium">Telepon</p>
+                      <p className="text-sm text-muted-foreground">
+                        (021) 1234-5678
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <Mail className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="font-medium">Email</p>
+                      <p className="text-sm text-muted-foreground">
+                        info@masjidattaqwa.org
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <Clock className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="font-medium">Jam Operasional</p>
+                      <p className="text-sm text-muted-foreground">
+                        Senin - Jumat: 08.00 - 17.00 WIB<br />
+                        Sabtu - Minggu: 08.00 - 12.00 WIB
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-primary/20 bg-primary/5">
+                <CardContent className="pt-6">
+                  <p className="text-sm text-muted-foreground">
+                    Masukan Anda sangat berharga bagi kami untuk terus meningkatkan pelayanan dan transparansi pengelolaan masjid.
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
+      </main>
+      <Footer />
+    </div>
+  );
+}
