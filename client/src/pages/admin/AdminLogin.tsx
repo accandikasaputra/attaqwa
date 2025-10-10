@@ -23,8 +23,10 @@ export default function AdminLogin() {
       // Simpan token dan data user
       localStorage.setItem("token", res.data.data.token);
       localStorage.setItem("user", JSON.stringify(res.data.data.user));
+      console.log("✅ Token disimpan:", res.data.data.token);
+      await new Promise((r) => setTimeout(r, 300)); // delay 300ms
+      navigate("/admin");
 
-      navigate("/admin"); // arahkan ke dashboard
     } catch (err: any) {
       setError(err.response?.data?.message || "Login gagal, periksa username/password");
     } finally {
