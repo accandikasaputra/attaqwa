@@ -3,6 +3,8 @@ import { createServer, type Server } from "http";
 import passport from "./auth";
 import { hashPassword } from "./auth";
 import { storage } from "./storage";
+import { generateToken } from "./auth.js";
+
 import {
   isAuthenticated,
   isAdmin,
@@ -55,23 +57,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Login
-  app.post("/api/auth/login", (req, res, next) => {
-    passport.authenticate("local", (err: any, user: any, info: any) => {
-      if (err) {
-        return next(err);
-      }
-      if (!user) {
-        return res.status(401).json({ error: info?.message || "Login gagal" });
-      }
-      req.logIn(user, (err) => {
-        if (err) {
-          return next(err);
-        }
-        const { password, ...userWithoutPassword } = user;
-        return res.json({ user: userWithoutPassword });
+  // ==================== AUTH ROUTES ====================
+
+// Login (JWT-based)
+app.post("/api/auth/login", (req, res, next) => {
+  console.log("🔥 Login endpoint called!");
+
+  passport.authenticate("local", { session: false }, (err: any, user: any, info: any) => {
+    if (err) {
+      console.error("Login error:", err);
+      return res.status(500).json({ success: false, message: "Terjadi kesalahan server." });
+    }
+
+    if (!user) {
+      console.warn("Login gagal:", info?.message);
+      return res.status(401).json({
+        success: false,
+        message: info?.message || "Email atau password salah.",
       });
-    })(req, res, next);
-  });
+    }
+
+    try {
+      // ✅ Generate JWT token langsung
+      const token = generateToken(user);
+      console.log("✅ Token generated:", token);
+
+      return res.status(200).json({
+        success: true,
+        message: "Login berhasil",
+        data: {
+          token,
+          user: {
+            id: user.id,
+            email: user.email,
+            fullName: user.fullName,
+            role: user.role,
+            isActive: user.isActive,
+          },
+        },
+      });
+    } catch (error: any) {
+      console.error("JWT error:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Gagal menghasilkan token.",
+      });
+    }
+  })(req, res, next);
+});
+
+
 
   // Logout
   app.post("/api/auth/logout", (req, res) => {
