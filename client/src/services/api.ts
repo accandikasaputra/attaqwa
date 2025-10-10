@@ -1,17 +1,17 @@
-// src/services/api.ts (sketch)
-import axios from 'axios';
-import { getToken } from './auth';
+// client/src/services/api.ts
+import axios, { type InternalAxiosRequestConfig } from "axios";
+import { getToken } from "./auth";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '/api',
-  headers: { 'Content-Type': 'application/json' },
+  baseURL: import.meta.env.VITE_API_URL || "/api",
+  headers: { "Content-Type": "application/json" },
 });
 
-// attach token
-api.interceptors.request.use((config) => {
-  const t = getToken();
-  if (t && config && config.headers) {
-    config.headers.Authorization = `Bearer ${t}`;
+// ✅ Interceptor untuk otomatis menambahkan Bearer token
+api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  const token = getToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });

@@ -4,6 +4,7 @@ import passport from "./auth";
 import { hashPassword } from "./auth";
 import { storage } from "./storage";
 import { generateToken } from "./auth.js";
+import { authMiddleware } from "./middleware/authMiddleware.js";
 
 import {
   isAuthenticated,
@@ -119,9 +120,13 @@ app.post("/api/auth/login", (req, res, next) => {
   });
 
   // Check session
-  app.get("/api/auth/me", isAuthenticated, (req, res) => {
-    const { password, ...userWithoutPassword } = req.user as any;
-    res.json({ user: userWithoutPassword });
+  app.get("/api/auth/me", authMiddleware, (req, res) => {
+    const user = (req as any).user;
+    res.json({
+      success: true,
+      message: "Token valid",
+      user,
+    });
   });
 
   // ==================== TRANSACTION ROUTES ====================
