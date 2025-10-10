@@ -273,6 +273,37 @@ app.post("/api/auth/login", (req, res, next) => {
     }
   });
 
+
+  // ==================== CATEGORY ROUTES ====================
+
+  // Static list (karena kategori fixed)
+  app.get("/api/categories", async (_req, res) => {
+    res.json({
+      success: true,
+      message: "Daftar kategori berita",
+      data: [
+        { key: "update-pembangunan", label: "Update Pembangunan" },
+        { key: "kegiatan", label: "Kegiatan" },
+        { key: "pengumuman", label: "Pengumuman" },
+      ],
+    });
+  });
+
+  // Get news by category
+  app.get("/api/news/category/:category", async (req, res, next) => {
+    try {
+      const { category } = req.params;
+      const newsList = await storage.getNewsByCategory(category);
+
+      res.json({
+        success: true,
+        message: `Berita untuk kategori ${category}`,
+        data: newsList,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
   // ==================== NEWS ROUTES ====================
 
   // Get all news (admin)
@@ -454,3 +485,5 @@ app.post("/api/auth/login", (req, res, next) => {
   const httpServer = createServer(app);
   return httpServer;
 }
+
+

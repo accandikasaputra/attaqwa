@@ -44,6 +44,9 @@ export interface IStorage {
   approveDonation(id: number, userId: number): Promise<void>;
   rejectDonation(id: number, userId: number, reason: string): Promise<void>;
   
+  
+
+
   // News operations
   createNews(news: InsertNews): Promise<News>;
   getNewsById(id: number): Promise<News | undefined>;
@@ -167,6 +170,32 @@ export class DBStorage implements IStorage {
       })
       .where(eq(donations.id, id));
   }
+
+  // ==================== NEWS CATEGORY ====================
+  async getNewsByCategory(category?: string) {
+    const validCategories = ["update-pembangunan", "kegiatan", "pengumuman"] as const;
+
+    if (!category || !validCategories.includes(category as any)) {
+      return await db
+        .select()
+        .from(news)
+        .where(eq(news.status, "published"))
+        .orderBy(desc(news.publishedAt));
+    }
+
+    return await db
+      .select()
+      .from(news)
+      .where(
+        and(
+          eq(news.category, category as (typeof validCategories)[number]),
+          eq(news.status, "published")
+        )
+      )
+      .orderBy(desc(news.publishedAt));
+  }
+
+
 
   // ==================== NEWS OPERATIONS ====================
   async createNews(insertNews: InsertNews): Promise<News> {

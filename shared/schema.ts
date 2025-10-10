@@ -120,6 +120,8 @@ export const news = mysqlTable("news", {
   content: text("content").notNull(),
   imageUrl: varchar("image_url", { length: 500 }),
   
+  category: mysqlEnum("category", ["update-pembangunan", "kegiatan", "pengumuman"]).notNull().default("pengumuman"),
+
   status: mysqlEnum("status", ["draft", "published"]).notNull().default("draft"),
   publishedAt: datetime("published_at"),
   

@@ -12,7 +12,7 @@ export default function AdminBeritaList() {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/beritas'); // adapt if your endpoint different
+      const res = await api.get('/news/all'); // adapt if your endpoint different
       setBeritas(res.data.data || res.data);
     } catch (err) { console.error(err); }
     setLoading(false);
@@ -21,7 +21,7 @@ export default function AdminBeritaList() {
   const handleDelete = async (id: number) => {
     if (!confirm('Hapus berita ini?')) return;
     try {
-      await api.delete(`/beritas/${id}`);
+      await api.delete(`/api/news/${id}`);
       load();
     } catch (err) { console.error(err); alert('Gagal menghapus'); }
   };
