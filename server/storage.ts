@@ -44,9 +44,12 @@ export interface IStorage {
   approveDonation(id: number, userId: number): Promise<void>;
   rejectDonation(id: number, userId: number, reason: string): Promise<void>;
   
+  
+
+
   // News operations
   createNews(news: InsertNews): Promise<News>;
-  getNewsById(id: number): Promise<News | undefined>;
+  getNewsById(id: number): Promise<News | null>;
   getAllNews(): Promise<News[]>;
   getPublishedNews(): Promise<News[]>;
   updateNews(id: number, updates: Partial<News>): Promise<void>;
@@ -168,35 +171,72 @@ export class DBStorage implements IStorage {
       .where(eq(donations.id, id));
   }
 
-  // ==================== NEWS OPERATIONS ====================
-  async createNews(insertNews: InsertNews): Promise<News> {
-    const [result] = await db.insert(news).values(insertNews).$returningId();
-    const created = await this.getNewsById(result.id);
-    if (!created) throw new Error('Failed to create news');
-    return created;
-  }
+  // ==================== NEWS CATEGORY ====================
+  async getNewsByCategory(category?: string) {
+    const validCategories = ["update-pembangunan", "kegiatan", "pengumuman"] as const;
 
-  async getNewsById(id: number): Promise<News | undefined> {
-    const [article] = await db.select().from(news).where(eq(news.id, id)).limit(1);
-    return article;
-  }
+    if (!category || !validCategories.includes(category as any)) {
+      return await db
+        .select()
+        .from(news)
+        .where(eq(news.status, "published"))
+        .orderBy(desc(news.publishedAt));
+    }
 
-  async getAllNews(): Promise<News[]> {
-    return await db.select().from(news).orderBy(desc(news.createdAt));
-  }
-
-  async getPublishedNews(): Promise<News[]> {
     return await db
       .select()
       .from(news)
-      .where(eq(news.status, 'published'))
+      .where(
+        and(
+          eq(news.category, category as (typeof validCategories)[number]),
+          eq(news.status, "published")
+        )
+      )
       .orderBy(desc(news.publishedAt));
   }
 
-  async updateNews(id: number, updates: Partial<News>): Promise<void> {
-    await db.update(news).set(updates).where(eq(news.id, id));
+
+
+  // ==================== NEWS OPERATIONS ====================
+  // Get all news (including drafts)
+  async getAllNews(): Promise<News[]> {
+    return db.select().from(news).orderBy(desc(news.createdAt));
   }
 
+  // Get published news only
+  async getPublishedNews(): Promise<News[]> {
+    return db
+      .select()
+      .from(news)
+      .where(eq(news.status, "published"))
+      .orderBy(desc(news.publishedAt));
+  }
+
+  // Get news by ID
+  async getNewsById(id: number): Promise<News | null> {
+    const result = await db.select().from(news).where(eq(news.id, id)).limit(1);
+    return result[0] || null;
+  }
+
+
+ // Create news
+  async createNews(data: InsertNews): Promise<News> {
+    const [result] = await db.insert(news).values(data);
+    const created = await this.getNewsById(result.insertId);
+    
+    if (!created) {
+      throw new Error("Failed to create news");
+    }
+    
+    return created; // ← Sekarang tidak akan error karena sudah di-check
+  }
+
+  // Update news
+  async updateNews(id: number, data: Partial<InsertNews>): Promise<void> {
+    await db.update(news).set(data).where(eq(news.id, id));
+  }
+
+  // Delete news
   async deleteNews(id: number): Promise<void> {
     await db.delete(news).where(eq(news.id, id));
   }
