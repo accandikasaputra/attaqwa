@@ -37,9 +37,9 @@ export default function Berita() {
       setLoading(true);
       setError("");
 
-      let url = "/news";
+      let url = "/news/public/list";
       if (selectedCategory !== "semua") {
-        url = `/news/category/${selectedCategory}`;
+        url = `/news/public/list?category=${selectedCategory}`;
       }
 
       const res = await api.get(url);

@@ -12,7 +12,7 @@ export default function AdminBeritaList() {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/news/all'); // adapt if your endpoint different
+      const res = await api.get('/news'); // adapt if your endpoint different
       setBeritas(res.data.data || res.data);
     } catch (err) { console.error(err); }
     setLoading(false);

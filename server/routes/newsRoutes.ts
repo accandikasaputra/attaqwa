@@ -127,10 +127,17 @@ router.post("/", authMiddleware, async (req: Request, res: Response, next: NextF
         message: "Unauthorized",
       });
     }
+    const dataToValidate = {
+      ...req.body,
+      authorId: req.user?.id,
+    };
+
+    // ✅ Tambahkan authorId dari user login sebelum divalidasi
+    
 
     // Validate input
-    const validatedData = insertNewsSchema.parse(req.body);
-
+    const validatedData = insertNewsSchema.parse(dataToValidate);
+    
     // Generate slug from title
     let slug = generateSlug(validatedData.title);
 

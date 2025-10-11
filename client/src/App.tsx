@@ -18,8 +18,10 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 // Admin pages
 import AdminLayout from "@/pages/admin/AdminLayout";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
-import AdminBeritaList from "@/pages/admin/AdminBeritaList";
-import AdminBeritaForm from "@/pages/admin/AdminBeritaForm";
+import AdminBeritaList from "@/pages/admin/NewsList";
+import AdminBeritaForm from "@/pages/admin/NewsForm";
+
+
 import AdminCashflowList from "@/pages/admin/AdminCashflowList";
 // import AdminCashflowForm from "@/pages/admin/AdminCashflowForm";
 
