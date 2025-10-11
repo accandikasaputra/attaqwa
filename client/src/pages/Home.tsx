@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import Navbar from '@/components/Navbar';
 import HeroBanner from '@/components/HeroBanner';
 import AboutSection from '@/components/AboutSection';
@@ -5,35 +6,12 @@ import CashFlowSummary from '@/components/CashFlowSummary';
 import NewsSection from '@/components/NewsSection';
 import DonationInfoSection from '@/components/DonationInfoSection';
 import Footer from '@/components/Footer';
-import communityImage1 from '@assets/stock_images/community_volunteeri_e559ab85.jpg';
-import communityImage2 from '@assets/stock_images/community_volunteeri_f0aeb485.jpg';
+import api from '@/services/api'; // ✅ axios instance yg sudah include baseURL & token
 
 export default function Home() {
-  const mockNews = [
-    {
-      id: 1,
-      title: 'Progres Pembangunan Mencapai 60%',
-      excerpt: 'Alhamdulillah, pembangunan masjid At-Taqwa telah mencapai 60%. Tim pembangunan terus bekerja dengan baik.',
-      category: 'update-pembangunan',
-      publishedAt: '2025-01-05',
-      image: communityImage1,
-    },
-    {
-      id: 2,
-      title: 'Pengajian Rutin Setiap Jumat Malam',
-      excerpt: 'Mengundang seluruh jamaah untuk mengikuti pengajian rutin setiap Jumat malam bersama Ustadz Ahmad.',
-      category: 'kegiatan',
-      publishedAt: '2025-01-03',
-      image: communityImage2,
-    },
-    {
-      id: 3,
-      title: 'Laporan Donasi Bulan Desember 2024',
-      excerpt: 'Total donasi yang terkumpul di bulan Desember mencapai Rp 45.000.000. Terima kasih atas partisipasi jamaah.',
-      category: 'pengumuman',
-      publishedAt: '2025-01-01',
-    },
-  ];
+  const [news, setNews] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const mockBankAccounts = [
     {
@@ -48,6 +26,23 @@ export default function Home() {
     },
   ];
 
+  useEffect(() => {
+    const fetchNews = async () => {
+      try {
+        setLoading(true);
+        const res = await api.get('/news/public/list?limit=3');
+        setNews(res.data.data || []); 
+      } catch (err: any) {
+        console.error('Gagal mengambil berita:', err);
+        setError('Tidak dapat memuat berita terbaru');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchNews();
+  }, []);
+
   return (
     <div className="min-h-screen">
       <Navbar />
@@ -59,7 +54,15 @@ export default function Home() {
           totalPengeluaran={180000000}
           saldo={70000000}
         />
-        <NewsSection news={mockNews} />
+
+        {loading ? (
+          <div className="text-center py-10 text-gray-500">Memuat berita...</div>
+        ) : error ? (
+          <div className="text-center py-10 text-red-500">{error}</div>
+        ) : (
+          <NewsSection news={news} />
+        )}
+
         <DonationInfoSection bankAccounts={mockBankAccounts} />
       </main>
       <Footer />
