@@ -5,6 +5,7 @@ import { hashPassword } from "./auth";
 import { storage } from "./storage";
 import { generateToken } from "./auth.js";
 import { authMiddleware } from "./middleware/authMiddleware.js";
+import newsRoutes from "./routes/newsRoutes";
 
 import {
   isAuthenticated,
@@ -306,78 +307,7 @@ app.post("/api/auth/login", (req, res, next) => {
   });
   // ==================== NEWS ROUTES ====================
 
-  // Get all news (admin)
-  app.get("/api/news/all", isAuthenticated, async (req, res, next) => {
-    try {
-      const allNews = await storage.getAllNews();
-      res.json(allNews);
-    } catch (error) {
-      next(error);
-    }
-  });
-
-  // Get published news (public)
-  app.get("/api/news", async (req, res, next) => {
-    try {
-      const publishedNews = await storage.getPublishedNews();
-      res.json(publishedNews);
-    } catch (error) {
-      next(error);
-    }
-  });
-
-  // Get single news
-  app.get("/api/news/:id", async (req, res, next) => {
-    try {
-      const id = parseInt(req.params.id);
-      const article = await storage.getNewsById(id);
-      if (!article) {
-        return res.status(404).json({ error: "Berita tidak ditemukan" });
-      }
-      res.json(article);
-    } catch (error) {
-      next(error);
-    }
-  });
-
-  // Create news
-  app.post("/api/news", isAuthenticated, async (req, res, next) => {
-    try {
-      const validatedData = insertNewsSchema.parse(req.body);
-      const article = await storage.createNews({
-        ...validatedData,
-        authorId: req.user!.id,
-      });
-      res.status(201).json(article);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: error.errors });
-      }
-      next(error);
-    }
-  });
-
-  // Update news
-  app.patch("/api/news/:id", isAuthenticated, async (req, res, next) => {
-    try {
-      const id = parseInt(req.params.id);
-      await storage.updateNews(id, req.body);
-      res.json({ message: "Berita berhasil diupdate" });
-    } catch (error) {
-      next(error);
-    }
-  });
-
-  // Delete news
-  app.delete("/api/news/:id", isAdmin, async (req, res, next) => {
-    try {
-      const id = parseInt(req.params.id);
-      await storage.deleteNews(id);
-      res.json({ message: "Berita berhasil dihapus" });
-    } catch (error) {
-      next(error);
-    }
-  });
+  app.use("/api/news", newsRoutes);
 
   // ==================== BANK ACCOUNT ROUTES ====================
 
