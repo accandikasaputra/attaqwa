@@ -14,7 +14,8 @@ import { z } from "zod";
 
 // ==================== USERS ====================
 export const users = mysqlTable("users", {
-  id: int("id").primaryKey().autoincrement(),
+  id: int("id", { unsigned: true }).primaryKey().autoincrement(),
+
   email: varchar("email", { length: 255 }).notNull().unique(),
   password: varchar("password", { length: 255 }).notNull(),
   fullName: varchar("full_name", { length: 255 }).notNull(),
@@ -25,7 +26,7 @@ export const users = mysqlTable("users", {
     "tim_konstruksi",
     "tim_procurement"
   ]).notNull().default("admin"),
-  isActive: int("is_active").notNull().default(1), // 1 = active, 0 = inactive
+  isActive: int("is_active", { unsigned: true }).notNull().default(1), // 1 = active, 0 = inactive
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
 });
@@ -220,3 +221,80 @@ export const insertFeedbackSchema = createInsertSchema(feedback).omit({
 
 export type Feedback = typeof feedback.$inferSelect;
 export type InsertFeedback = z.infer<typeof insertFeedbackSchema>;
+
+// ==================== PURCHASE ORDERS ====================
+export const purchaseOrders = mysqlTable("purchase_orders", {
+  id: int("id").primaryKey().autoincrement(),
+  poNumber: varchar("po_number", { length: 50 }).notNull().unique(), // PO/DDMMYYYY/XXX
+  category: mysqlEnum("category", ["material", "tenaga_kerja", "operasional", "lainnya"]).notNull(),
+  totalAmount: decimal("total_amount", { precision: 15, scale: 2 }).notNull().default("0"),
+  
+  // Status workflow
+  status: mysqlEnum("status", [
+    "draft",
+    "pending_review",
+    "approved_bendahara",
+    "approved_ketua",
+    "rejected"
+  ]).notNull().default("draft"),
+  
+  // Creator tracking
+  createdBy: int("created_by").notNull().references(() => users.id),
+  createdByRole: mysqlEnum("created_by_role", ["tim_konstruksi", "tim_procurement"]).notNull(),
+  
+  // Approval tracking
+  reviewedByBendahara: int("reviewed_by_bendahara").references(() => users.id),
+  reviewedByBendaharaAt: datetime("reviewed_by_bendahara_at"),
+  
+  approvedByKetua: int("approved_by_ketua").references(() => users.id),
+  approvedByKetuaAt: datetime("approved_by_ketua_at"),
+  
+  // Rejection
+  rejectedBy: int("rejected_by").references(() => users.id),
+  rejectedAt: datetime("rejected_at"),
+  rejectionReason: text("rejection_reason"),
+  
+  // Metadata
+  notes: text("notes"),
+  cashFlowId: int("cash_flow_id"), // Reference to transactions table after approved
+  
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
+});
+
+export const insertPurchaseOrderSchema = createInsertSchema(purchaseOrders).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type PurchaseOrder = typeof purchaseOrders.$inferSelect;
+export type InsertPurchaseOrder = z.infer<typeof insertPurchaseOrderSchema>;
+
+// ==================== PO ITEMS ====================
+export const poItems = mysqlTable("po_items", {
+  id: int("id").primaryKey().autoincrement(),
+  poId: int("po_id").notNull().references(() => purchaseOrders.id, { onDelete: "cascade" }),
+  
+  itemName: varchar("item_name", { length: 255 }).notNull(),
+  quantity: int("quantity").notNull(),
+  unit: varchar("unit", { length: 50 }).notNull(), // pcs, kg, m3, dll
+  
+  unitPrice: decimal("unit_price", { precision: 15, scale: 2 }), // Nullable untuk tim_konstruksi
+  totalPrice: decimal("total_price", { precision: 15, scale: 2 }), // quantity * unit_price
+  
+  isSelectedByBendahara: int("is_selected_by_bendahara").notNull().default(1), // 1 = selected, 0 = unselected
+  notes: text("notes"),
+  
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
+});
+
+export const insertPOItemSchema = createInsertSchema(poItems).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type POItem = typeof poItems.$inferSelect;
+export type InsertPOItem = z.infer<typeof insertPOItemSchema>;

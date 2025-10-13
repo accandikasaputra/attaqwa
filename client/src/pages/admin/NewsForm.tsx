@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { newsApi, type News } from '../../services/newsApi';
+import ReactQuill from "react-quill";
+import "react-quill/dist/quill.snow.css";
+
 import {
   ArrowLeft,
   Save,
@@ -326,23 +329,50 @@ export default function NewsForm() {
             <label className="block text-sm font-semibold text-gray-900 mb-2">
               Konten <span className="text-red-500">*</span>
             </label>
-            <textarea
-              name="content"
+
+            {/* 🧩 Ganti textarea menjadi ReactQuill */}
+            <ReactQuill
               value={formData.content}
-              onChange={handleChange}
-              rows={15}
-              placeholder="Tulis konten berita di sini... (support HTML)"
-              className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-colors font-mono text-sm resize-none ${
-                errors.content ? 'border-red-300' : 'border-gray-200'
+              onChange={(value) =>
+                setFormData((prev) => ({ ...prev, content: value }))
+              }
+              theme="snow"
+              modules={{
+                toolbar: [
+                  [{ header: [1, 2, 3, false] }],
+                  ["bold", "italic", "underline", "strike"],
+                  [{ list: "ordered" }, { list: "bullet" }],
+                  ["link", "blockquote", "code-block"],
+                  ["clean"],
+                ],
+              }}
+              formats={[
+                "header",
+                "bold",
+                "italic",
+                "underline",
+                "strike",
+                "list",
+                "bullet",
+                "link",
+                "blockquote",
+                "code-block",
+              ]}
+              className={`border-2 rounded-lg ${
+                errors.content ? "border-red-300" : "border-gray-200"
               }`}
             />
+
             {errors.content && (
               <p className="mt-1 text-sm text-red-600">{errors.content}</p>
             )}
+
             <p className="mt-1 text-xs text-gray-500">
-              Tips: Anda bisa menggunakan HTML untuk formatting
+              Tips: Anda bisa menulis dengan format teks atau klik tombol {'</>'} untuk
+              melihat HTML (mode script)
             </p>
-          </div>
+</div>
+
 
           {/* Image URL */}
           <div className="bg-white rounded-lg shadow-sm p-6">

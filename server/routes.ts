@@ -174,7 +174,7 @@ app.post("/api/auth/login", (req, res, next) => {
   });
 
   // Approve transaction as bendahara
-  app.post("/api/transactions/:id/approve-bendahara", canApproveBendahara, async (req, res, next) => {
+  app.post("/api/transactions/:id/approve-bendahara", isAuthenticated,canApproveBendahara, async (req, res, next) => {
     try {
       const id = parseInt(req.params.id);
       const transaction = await storage.getTransactionById(id);
@@ -195,7 +195,7 @@ app.post("/api/auth/login", (req, res, next) => {
   });
 
   // Approve transaction as ketua
-  app.post("/api/transactions/:id/approve-ketua", canApproveKetua, async (req, res, next) => {
+  app.post("/api/transactions/:id/approve-ketua",isAuthenticated, canApproveKetua, async (req, res, next) => {
     try {
       const id = parseInt(req.params.id);
       const transaction = await storage.getTransactionById(id);
@@ -406,6 +406,490 @@ app.post("/api/auth/login", (req, res, next) => {
         totalPemasukan,
         totalPengeluaran,
         saldo,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Get all POs with filters
+  app.get("/api/po", authMiddleware, async (req, res, next) => {
+    try {
+      const { status, category, role, search } = req.query;
+      
+      let pos = await storage.getAllPurchaseOrders();
+      
+      // Apply filters
+      if (status) {
+        pos = pos.filter(po => po.status === status);
+      }
+      if (category) {
+        pos = pos.filter(po => po.category === category);
+      }
+      if (role) {
+        pos = pos.filter(po => po.createdByRole === role);
+      }
+      if (search) {
+        const searchLower = (search as string).toLowerCase();
+        pos = pos.filter(po => 
+          po.poNumber.toLowerCase().includes(searchLower) ||
+          (po.notes && po.notes.toLowerCase().includes(searchLower))
+        );
+      }
+      
+      // Get item counts for each PO
+      const posWithCounts = await Promise.all(
+        pos.map(async (po) => {
+          const items = await storage.getPOItemsByPOId(po.id);
+          return {
+            ...po,
+            itemCount: items.length,
+          };
+        })
+      );
+      
+      res.json({
+        success: true,
+        message: "Daftar Purchase Order",
+        data: posWithCounts,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Get PO detail with items
+  app.get("/api/po/:id", authMiddleware, async (req, res, next) => {
+    try {
+      const id = parseInt(req.params.id);
+      const po = await storage.getPurchaseOrderById(id);
+      
+      if (!po) {
+        return res.status(404).json({
+          success: false,
+          message: "Purchase Order tidak ditemukan"
+        });
+      }
+      
+      const items = await storage.getPOItemsByPOId(id);
+      
+      res.json({
+        success: true,
+        message: "Detail Purchase Order",
+        data: {
+          ...po,
+          items,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Create PO
+  app.post("/api/po", authMiddleware, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      
+      // Check if user can create PO
+      if (!['admin','tim_konstruksi', 'tim_procurement'].includes(user.role)) {
+        return res.status(403).json({
+          success: false,
+          message: "Anda tidak memiliki akses untuk membuat PO"
+        });
+      }
+      
+      const { category, notes, items } = req.body;
+      
+      // Validate items
+      if (!items || items.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: "PO harus memiliki minimal 1 item"
+        });
+      }
+      
+      // Generate PO number
+      const poNumber = await storage.generatePONumber();
+      
+      // Create PO
+      const po = await storage.createPurchaseOrder({
+        poNumber,
+        category,
+        notes,
+        totalAmount: "0",
+        status: "draft",
+        createdBy: user.id,
+        createdByRole: user.role as "tim_konstruksi" | "tim_procurement",
+      });
+      
+      // Create items
+      let totalAmount = 0;
+      for (const item of items) {
+        const unitPrice = item.unitPrice || null;
+        const totalPrice = unitPrice ? item.quantity * unitPrice : null;
+        
+        await storage.createPOItem({
+          poId: po.id,
+          itemName: item.itemName,
+          quantity: item.quantity,
+          unit: item.unit,
+          unitPrice: unitPrice ? unitPrice.toString() : null,
+          totalPrice: totalPrice ? totalPrice.toString() : null,
+          notes: item.notes,
+        });
+        
+        if (totalPrice) {
+          totalAmount += totalPrice;
+        }
+      }
+      
+      // Update total amount
+      await storage.updatePurchaseOrder(po.id, {
+        totalAmount: totalAmount.toString(),
+      });
+      
+      res.status(201).json({
+        success: true,
+        message: "Purchase Order berhasil dibuat",
+        data: {
+          id: po.id,
+          poNumber: po.poNumber,
+          status: po.status,
+          totalAmount,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Input price (tim_procurement only)
+  app.put("/api/po/:id/input-price", authMiddleware, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const id = parseInt(req.params.id);
+      
+      if (user.role !== 'tim_procurement') {
+        return res.status(403).json({
+          success: false,
+          message: "Hanya tim procurement yang dapat input harga"
+        });
+      }
+      
+      const po = await storage.getPurchaseOrderById(id);
+      if (!po) {
+        return res.status(404).json({
+          success: false,
+          message: "Purchase Order tidak ditemukan"
+        });
+      }
+      
+      if (po.createdByRole !== 'tim_konstruksi') {
+        return res.status(400).json({
+          success: false,
+          message: "Hanya PO dari tim konstruksi yang perlu input harga"
+        });
+      }
+      
+      if (po.status !== 'draft') {
+        return res.status(400).json({
+          success: false,
+          message: "PO sudah diproses, tidak dapat diubah"
+        });
+      }
+      
+      const { items } = req.body;
+      
+      let totalAmount = 0;
+      for (const item of items) {
+        const totalPrice = item.quantity * item.unitPrice;
+        
+        await storage.updatePOItem(item.id, {
+          unitPrice: item.unitPrice.toString(),
+          totalPrice: totalPrice.toString(),
+        });
+        
+        totalAmount += totalPrice;
+      }
+      
+      await storage.updatePurchaseOrder(id, {
+        totalAmount: totalAmount.toString(),
+      });
+      
+      res.json({
+        success: true,
+        message: "Harga berhasil diinput",
+        data: {
+          poNumber: po.poNumber,
+          totalAmount,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Submit PO for review
+  app.put("/api/po/:id/submit", authMiddleware, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const id = parseInt(req.params.id);
+      
+      if (user.role !== 'tim_procurement') {
+        return res.status(403).json({
+          success: false,
+          message: "Hanya tim procurement yang dapat submit PO"
+        });
+      }
+      
+      const po = await storage.getPurchaseOrderById(id);
+      if (!po) {
+        return res.status(404).json({
+          success: false,
+          message: "Purchase Order tidak ditemukan"
+        });
+      }
+      
+      if (po.status !== 'draft') {
+        return res.status(400).json({
+          success: false,
+          message: "PO sudah di-submit"
+        });
+      }
+      
+      // Validate all items have prices
+      const items = await storage.getPOItemsByPOId(id);
+      const hasIncompletePrices = items.some(item => !item.unitPrice || !item.totalPrice);
+      
+      if (hasIncompletePrices) {
+        return res.status(400).json({
+          success: false,
+          message: "Semua item harus memiliki harga sebelum di-submit"
+        });
+      }
+      
+      await storage.updatePurchaseOrder(id, {
+        status: "pending_review",
+      });
+      
+      res.json({
+        success: true,
+        message: "PO berhasil di-submit untuk review",
+        data: {
+          poNumber: po.poNumber,
+          status: "pending_review",
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Review by Bendahara
+  app.put("/api/po/:id/review-bendahara", authMiddleware,canApproveBendahara, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const id = parseInt(req.params.id);
+      const { action, selectedItems, rejectionReason } = req.body;
+      
+      const po = await storage.getPurchaseOrderById(id);
+      if (!po) {
+        return res.status(404).json({
+          success: false,
+          message: "Purchase Order tidak ditemukan"
+        });
+      }
+      
+      if (po.status !== 'pending_review') {
+        return res.status(400).json({
+          success: false,
+          message: "PO tidak dalam status review"
+        });
+      }
+      
+      if (action === 'reject') {
+        await storage.updatePurchaseOrder(id, {
+          status: "rejected",
+          rejectedBy: user.id,
+          rejectedAt: new Date(),
+          rejectionReason,
+        });
+        
+        return res.json({
+          success: true,
+          message: "PO ditolak",
+          data: {
+            poNumber: po.poNumber,
+            status: "rejected",
+          },
+        });
+      }
+      
+      // Approve - update item selections
+      const allItems = await storage.getPOItemsByPOId(id);
+      
+      for (const item of allItems) {
+        const isSelected = selectedItems.includes(item.id);
+        await storage.updatePOItemSelection(item.id, isSelected);
+      }
+      
+      // Recalculate total amount
+      const selectedItemsData = allItems.filter(item => selectedItems.includes(item.id));
+      const totalAmount = selectedItemsData.reduce(
+        (sum, item) => sum + Number(item.totalPrice || 0),
+        0
+      );
+      
+      // Generate cash flow description
+      const itemDescriptions = selectedItemsData.map(item =>
+        `${item.itemName} ${item.quantity} ${item.unit}(${Number(item.totalPrice).toLocaleString('id-ID')})`
+      );
+      const description = `pembelian ${itemDescriptions.join(' dan ')}`;
+      
+      // Create cash flow entry (using transactions table)
+      const cashFlow = await storage.createTransaction({
+        type: "pengeluaran",
+        category: po.category,
+        description,
+        amount: totalAmount.toString(),
+        status: "pending",
+        createdBy: user.id,
+        createdByTeam: "admin",
+        transactionDate: new Date(),
+      });
+      
+      // Update PO
+      await storage.updatePurchaseOrder(id, {
+        status: "approved_bendahara",
+        totalAmount: totalAmount.toString(),
+        reviewedByBendahara: user.id,
+        reviewedByBendaharaAt: new Date(),
+        cashFlowId: cashFlow.id,
+      });
+      
+      res.json({
+        success: true,
+        message: "PO berhasil di-approve dan masuk ke cash flow",
+        data: {
+          poNumber: po.poNumber,
+          status: "approved_bendahara",
+          totalAmount,
+          cashFlowId: cashFlow.id,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Approve by Ketua
+  app.put("/api/po/:id/approve-ketua", authMiddleware, canApproveKetua, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const id = parseInt(req.params.id);
+      const { action, rejectionReason } = req.body;
+      
+      const po = await storage.getPurchaseOrderById(id);
+      if (!po) {
+        return res.status(404).json({
+          success: false,
+          message: "Purchase Order tidak ditemukan"
+        });
+      }
+      
+      if (po.status !== 'approved_bendahara') {
+        return res.status(400).json({
+          success: false,
+          message: "PO harus di-approve bendahara terlebih dahulu"
+        });
+      }
+      
+      if (action === 'reject') {
+        // Update PO
+        await storage.updatePurchaseOrder(id, {
+          status: "rejected",
+          rejectedBy: user.id,
+          rejectedAt: new Date(),
+          rejectionReason,
+        });
+        
+        // Update cash flow to rejected
+        if (po.cashFlowId) {
+          await storage.updateTransactionStatus(po.cashFlowId, 'rejected', user.id);
+        }
+        
+        return res.json({
+          success: true,
+          message: "PO ditolak",
+          data: {
+            poNumber: po.poNumber,
+            status: "rejected",
+          },
+        });
+      }
+      
+      // Approve
+      await storage.updatePurchaseOrder(id, {
+        status: "approved_ketua",
+        approvedByKetua: user.id,
+        approvedByKetuaAt: new Date(),
+      });
+      
+      // Update cash flow to approved
+      if (po.cashFlowId) {
+        await storage.updateTransactionStatus(po.cashFlowId, 'approved', user.id);
+      }
+      
+      res.json({
+        success: true,
+        message: "PO berhasil di-approve ketua",
+        data: {
+          poNumber: po.poNumber,
+          status: "approved_ketua",
+          cashFlowUpdated: true,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Delete PO (only draft)
+  app.delete("/api/po/:id", authMiddleware, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const id = parseInt(req.params.id);
+      
+      const po = await storage.getPurchaseOrderById(id);
+      if (!po) {
+        return res.status(404).json({
+          success: false,
+          message: "Purchase Order tidak ditemukan"
+        });
+      }
+      
+      // Check ownership
+      if (po.createdBy !== user.id) {
+        return res.status(403).json({
+          success: false,
+          message: "Anda tidak dapat menghapus PO ini"
+        });
+      }
+      
+      // Can only delete draft
+      if (po.status !== 'draft') {
+        return res.status(400).json({
+          success: false,
+          message: "Hanya PO dengan status draft yang dapat dihapus"
+        });
+      }
+      
+      await storage.deletePurchaseOrder(id);
+      
+      res.json({
+        success: true,
+        message: "Purchase Order berhasil dihapus",
       });
     } catch (error) {
       next(error);

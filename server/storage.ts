@@ -7,6 +7,8 @@ import {
   donations,
   bankAccounts,
   feedback,
+  purchaseOrders,
+  poItems,
   type User,
   type InsertUser,
   type Transaction,
@@ -19,8 +21,12 @@ import {
   type InsertBankAccount,
   type Feedback,
   type InsertFeedback,
+  type PurchaseOrder,
+  type InsertPurchaseOrder,
+  type POItem,
+  type InsertPOItem,
 } from '@shared/schema';
-import { eq, desc, and, or } from 'drizzle-orm';
+import { eq, desc, and, or, gte, lt } from 'drizzle-orm';
 
 // Storage interface for all CRUD operations
 export interface IStorage {
@@ -65,6 +71,24 @@ export interface IStorage {
   createFeedback(feedback: InsertFeedback): Promise<Feedback>;
   getAllFeedback(): Promise<Feedback[]>;
   markFeedbackAsRead(id: number, userId: number): Promise<void>;
+
+
+   // Purchase Order operations
+  createPurchaseOrder(po: InsertPurchaseOrder): Promise<PurchaseOrder>;
+  getPurchaseOrderById(id: number): Promise<PurchaseOrder | undefined>;
+  getAllPurchaseOrders(): Promise<PurchaseOrder[]>;
+  getPurchaseOrdersByStatus(status: string): Promise<PurchaseOrder[]>;
+  getPurchaseOrdersByRole(role: string): Promise<PurchaseOrder[]>;
+  updatePurchaseOrder(id: number, updates: Partial<PurchaseOrder>): Promise<void>;
+  deletePurchaseOrder(id: number): Promise<void>;
+  generatePONumber(): Promise<string>;
+  
+  // PO Item operations
+  createPOItem(item: InsertPOItem): Promise<POItem>;
+  getPOItemsByPOId(poId: number): Promise<POItem[]>;
+  updatePOItem(id: number, updates: Partial<POItem>): Promise<void>;
+  deletePOItem(id: number): Promise<void>;
+  updatePOItemSelection(id: number, isSelected: boolean): Promise<void>;
 }
 
 // Database storage implementation
@@ -294,6 +318,118 @@ export class DBStorage implements IStorage {
         readAt: new Date(),
       })
       .where(eq(feedback.id, id));
+  }
+
+
+   // ==================== PURCHASE ORDER OPERATIONS ====================
+  
+  async generatePONumber(): Promise<string> {
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, '0');
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const year = now.getFullYear();
+    
+    // Get count of POs created today
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayPOs = await db
+      .select()
+      .from(purchaseOrders)
+      .where(
+        and(
+          gte(purchaseOrders.createdAt, today),
+          lt(purchaseOrders.createdAt, new Date(today.getTime() + 86400000))
+        )
+      );
+    
+    const sequence = String(todayPOs.length + 1).padStart(3, '0');
+    return `PO/${day}${month}${year}/${sequence}`;
+  }
+  
+  async createPurchaseOrder(po: InsertPurchaseOrder): Promise<PurchaseOrder> {
+    const [result] = await db.insert(purchaseOrders).values(po).$returningId();
+    const created = await this.getPurchaseOrderById(result.id);
+    if (!created) throw new Error('Failed to create purchase order');
+    return created;
+  }
+  
+  async getPurchaseOrderById(id: number): Promise<PurchaseOrder | undefined> {
+    const [po] = await db
+      .select()
+      .from(purchaseOrders)
+      .where(eq(purchaseOrders.id, id))
+      .limit(1);
+    return po;
+  }
+  
+  async getAllPurchaseOrders(): Promise<PurchaseOrder[]> {
+    return await db
+      .select()
+      .from(purchaseOrders)
+      .orderBy(desc(purchaseOrders.createdAt));
+  }
+  
+  async getPurchaseOrdersByStatus(status: string): Promise<PurchaseOrder[]> {
+    return await db
+      .select()
+      .from(purchaseOrders)
+      .where(eq(purchaseOrders.status, status as any))
+      .orderBy(desc(purchaseOrders.createdAt));
+  }
+  
+  async getPurchaseOrdersByRole(role: string): Promise<PurchaseOrder[]> {
+    return await db
+      .select()
+      .from(purchaseOrders)
+      .where(eq(purchaseOrders.createdByRole, role as any))
+      .orderBy(desc(purchaseOrders.createdAt));
+  }
+  
+  async updatePurchaseOrder(id: number, updates: Partial<PurchaseOrder>): Promise<void> {
+    await db
+      .update(purchaseOrders)
+      .set(updates)
+      .where(eq(purchaseOrders.id, id));
+  }
+  
+  async deletePurchaseOrder(id: number): Promise<void> {
+    // Items will be deleted automatically due to CASCADE
+    await db.delete(purchaseOrders).where(eq(purchaseOrders.id, id));
+  }
+  
+  // ==================== PO ITEM OPERATIONS ====================
+  
+  async createPOItem(item: InsertPOItem): Promise<POItem> {
+    const [result] = await db.insert(poItems).values(item).$returningId();
+    const [created] = await db
+      .select()
+      .from(poItems)
+      .where(eq(poItems.id, result.id))
+      .limit(1);
+    if (!created) throw new Error('Failed to create PO item');
+    return created;
+  }
+  
+  async getPOItemsByPOId(poId: number): Promise<POItem[]> {
+    return await db
+      .select()
+      .from(poItems)
+      .where(eq(poItems.poId, poId))
+      .orderBy(poItems.id);
+  }
+  
+  async updatePOItem(id: number, updates: Partial<POItem>): Promise<void> {
+    await db.update(poItems).set(updates).where(eq(poItems.id, id));
+  }
+  
+  async deletePOItem(id: number): Promise<void> {
+    await db.delete(poItems).where(eq(poItems.id, id));
+  }
+  
+  async updatePOItemSelection(id: number, isSelected: boolean): Promise<void> {
+    await db
+      .update(poItems)
+      .set({ isSelectedByBendahara: isSelected ? 1 : 0 })
+      .where(eq(poItems.id, id));
   }
 }
 

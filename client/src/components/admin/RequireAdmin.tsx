@@ -20,7 +20,7 @@ export default function RequireAdmin({ children }: { children: JSX.Element }) {
             try {
                 const res = await api.get('/auth/me');
                 const user = res.data?.data || res.data?.user;
-                if (user?.role === 'ketua' || user?.role === 'admin') {
+                if (user?.role === 'ketua' || user?.role === 'admin' || user?.role === 'bendahara' || user?.role === 'tim_konstruksi' || user?.role === 'tim_procurement' ) {
                     setAllowed(true);
                 } else {
                     setAllowed(false);

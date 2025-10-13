@@ -18,6 +18,7 @@ return (
                 <nav className="flex flex-col gap-2">
                     <Link to="/admin" className="py-2 px-3 rounded hover:bg-gray-100">Dashboard</Link>
                     <Link to="/admin/berita" className="py-2 px-3 rounded hover:bg-gray-100">Berita</Link>
+                    <Link to="/admin/po" className="py-2 px-3 rounded hover:bg-gray-100">Purchase Order 2</Link>
                     <Link to="/admin/donasi" className="py-2 px-3 rounded hover:bg-gray-100">Donasi</Link>
                     <button onClick={handleLogout} className="mt-4 py-2 px-3 bg-red-500 text-white rounded">Logout</button>
                 </nav>
