@@ -643,6 +643,7 @@ app.post("/api/auth/login", (req, res, next) => {
       ],
     });
   });
+  // ==================== NEWS ROUTES ====================
 
   // Get news by category
   app.get("/api/news/category/:category", async (req, res, next) => {

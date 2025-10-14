@@ -66,6 +66,23 @@ export default function Home() {
     fetchNews();
   }, []);
 
+  useEffect(() => {
+    const fetchNews = async () => {
+      try {
+        setLoading(true);
+        const res = await api.get('/news/public/list?limit=3');
+        setNews(res.data.data || []); 
+      } catch (err: any) {
+        console.error('Gagal mengambil berita:', err);
+        setError('Tidak dapat memuat berita terbaru');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchNews();
+  }, []);
+
   return (
     <div className="min-h-screen">
       <Navbar />
