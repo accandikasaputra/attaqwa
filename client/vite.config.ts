@@ -16,9 +16,12 @@ export default defineConfig({
     allowedHosts: [
       "localhost",
       "127.0.0.1",
-      "meanderingly-authorisable-aden.ngrok-free.dev", // ✅ domain ngrok kamu
+      "meanderingly-authorisable-aden.ngrok-free.dev", // ✅ domain ngrok
       "all", // biar fleksibel (opsional)
     ],
+    hmr: {
+      overlay: false, // Disables the full-screen error overlay
+    },
   },
   preview: {
     allowedHosts: ["all"],

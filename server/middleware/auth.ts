@@ -1,7 +1,6 @@
-import { Request, Response, NextFunction } from 'express';
-import type { User } from '@shared/schema';
+import { Request, Response, NextFunction } from "express";
+import jwt from "jsonwebtoken";
 
-// Extend Express Request to include user
 declare global {
   namespace Express {
     interface User {
@@ -13,26 +12,43 @@ declare global {
     }
   }
 }
-
-// Check if user is authenticated
-export function isAuthenticated(req: Request, res: Response, next: NextFunction) {
-  if (req.isAuthenticated()) {
-    return next();
-  }
-  res.status(401).json({ error: 'Unauthorized. Please login first.' });
+interface JwtPayload {
+  id: number;
+  email: string;
+  fullName?: string;
+  role: "admin" | "bendahara" | "ketua" | "tim_konstruksi" | "tim_procurement";
+  isActive?: number;
 }
 
-// Check if user has specific role
-export function hasRole(...roles: string[]) {
+// Middleware utama: verifikasi token JWT dan isi req.user
+export function isAuthenticated(req: Request, res: Response, next: NextFunction) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Token tidak ditemukan" });
+  }
+
+  try {
+    const token = authHeader.split(" ")[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || "masjid-attaqwa-secret") as JwtPayload;
+
+    (req as any).user = decoded; // Simpan data user
+    next();
+  } catch (error) {
+    return res.status(401).json({ error: "Token tidak valid" });
+  }
+}
+
+// Middleware: cek role yang diizinkan
+export function hasRole(...roles: JwtPayload["role"][]) {
   return (req: Request, res: Response, next: NextFunction) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ error: 'Unauthorized' });
+    const user = (req as any).user;
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
     }
 
-    const userRole = req.user?.role;
-    if (!userRole || !roles.includes(userRole)) {
-      return res.status(403).json({ 
-        error: 'Forbidden. You do not have permission to access this resource.' 
+    if (!roles.includes(user.role)) {
+      return res.status(403).json({
+        error: "Forbidden. Anda tidak memiliki izin untuk mengakses resource ini.",
       });
     }
 
@@ -40,20 +56,11 @@ export function hasRole(...roles: string[]) {
   };
 }
 
-// Check if user is admin
-export const isAdmin = hasRole('admin');
-
-// Check if user is bendahara or admin
-export const isBendaharaOrAdmin = hasRole('admin', 'bendahara');
-
-// Check if user is ketua or admin
-export const isKetuaOrAdmin = hasRole('admin', 'ketua');
-
-// Check if user can create transactions (admin, tim_konstruksi, tim_procurement)
-export const canCreateTransaction = hasRole('admin', 'tim_konstruksi', 'tim_procurement');
-
-// Check if user can approve as bendahara
-export const canApproveBendahara = hasRole('admin', 'bendahara');
-
-// Check if user can approve as ketua
-export const canApproveKetua = hasRole('admin', 'ketua');
+// Middleware-middleware role khusus
+export const canManagePO = hasRole("tim_konstruksi", "tim_procurement");
+export const isAdmin = hasRole("admin");
+export const isBendaharaOrAdmin = hasRole("admin", "bendahara");
+export const isKetuaOrAdmin = hasRole("admin", "ketua");
+export const canCreateTransaction = hasRole("admin", "tim_konstruksi", "tim_procurement");
+export const canApproveBendahara = hasRole("admin", "bendahara");
+export const canApproveKetua = hasRole("admin", "ketua");

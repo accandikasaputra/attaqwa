@@ -7,6 +7,8 @@ import {
   donations,
   bankAccounts,
   feedback,
+  purchaseOrders,
+  poItems,
   type User,
   type InsertUser,
   type Transaction,
@@ -19,8 +21,12 @@ import {
   type InsertBankAccount,
   type Feedback,
   type InsertFeedback,
+  type PurchaseOrder,
+  type InsertPurchaseOrder,
+  type POItem,
+  type InsertPOItem,
 } from '@shared/schema';
-import { eq, desc, and, or } from 'drizzle-orm';
+import { eq, desc, and, or, gte, lt } from 'drizzle-orm';
 
 // Storage interface for all CRUD operations
 export interface IStorage {
@@ -37,12 +43,14 @@ export interface IStorage {
   updateTransactionStatus(id: number, status: string, userId: number): Promise<void>;
   
   // Donation operations
+  // Donation operations - UPDATE
   createDonation(donation: InsertDonation): Promise<Donation>;
   getDonationById(id: number): Promise<Donation | undefined>;
   getAllDonations(): Promise<Donation[]>;
-  getPendingDonations(): Promise<Donation[]>;
-  approveDonation(id: number, userId: number): Promise<void>;
-  rejectDonation(id: number, userId: number, reason: string): Promise<void>;
+  getDonationsByStatus(status: string): Promise<Donation[]>;
+  updateDonation(id: number, updates: Partial<Donation>): Promise<void>;
+  deleteDonation(id: number): Promise<void>;
+  submitDonation(id: number): Promise<void>;
   
   
 
@@ -65,6 +73,24 @@ export interface IStorage {
   createFeedback(feedback: InsertFeedback): Promise<Feedback>;
   getAllFeedback(): Promise<Feedback[]>;
   markFeedbackAsRead(id: number, userId: number): Promise<void>;
+
+
+   // Purchase Order operations
+  createPurchaseOrder(po: InsertPurchaseOrder): Promise<PurchaseOrder>;
+  getPurchaseOrderById(id: number): Promise<PurchaseOrder | undefined>;
+  getAllPurchaseOrders(): Promise<PurchaseOrder[]>;
+  getPurchaseOrdersByStatus(status: string): Promise<PurchaseOrder[]>;
+  getPurchaseOrdersByRole(role: string): Promise<PurchaseOrder[]>;
+  updatePurchaseOrder(id: number, updates: Partial<PurchaseOrder>): Promise<void>;
+  deletePurchaseOrder(id: number): Promise<void>;
+  generatePONumber(): Promise<string>;
+  
+  // PO Item operations
+  createPOItem(item: InsertPOItem): Promise<POItem>;
+  getPOItemsByPOId(poId: number): Promise<POItem[]>;
+  updatePOItem(id: number, updates: Partial<POItem>): Promise<void>;
+  deletePOItem(id: number): Promise<void>;
+  updatePOItemSelection(id: number, isSelected: boolean): Promise<void>;
 }
 
 // Database storage implementation
@@ -124,50 +150,62 @@ export class DBStorage implements IStorage {
   }
 
   // ==================== DONATION OPERATIONS ====================
+  
   async createDonation(donation: InsertDonation): Promise<Donation> {
     const [result] = await db.insert(donations).values(donation).$returningId();
     const created = await this.getDonationById(result.id);
     if (!created) throw new Error('Failed to create donation');
     return created;
   }
-
+  
   async getDonationById(id: number): Promise<Donation | undefined> {
-    const [donation] = await db.select().from(donations).where(eq(donations.id, id)).limit(1);
+    const [donation] = await db
+      .select()
+      .from(donations)
+      .where(eq(donations.id, id))
+      .limit(1);
     return donation;
   }
-
+  
   async getAllDonations(): Promise<Donation[]> {
-    return await db.select().from(donations).orderBy(desc(donations.createdAt));
-  }
-
-  async getPendingDonations(): Promise<Donation[]> {
     return await db
       .select()
       .from(donations)
-      .where(eq(donations.status, 'pending'))
       .orderBy(desc(donations.createdAt));
   }
-
-  async approveDonation(id: number, userId: number): Promise<void> {
+  
+  async getDonationsByStatus(status: string): Promise<Donation[]> {
+    return await db
+      .select()
+      .from(donations)
+      .where(eq(donations.status, status as any))
+      .orderBy(desc(donations.createdAt));
+  }
+  
+  async updateDonation(id: number, updates: Partial<Donation>): Promise<void> {
     await db
       .update(donations)
-      .set({
-        status: 'approved',
-        approvedBy: userId,
-        approvedAt: new Date(),
-      })
+      .set(updates)
       .where(eq(donations.id, id));
   }
-
-  async rejectDonation(id: number, userId: number, reason: string): Promise<void> {
+  
+  async deleteDonation(id: number): Promise<void> {
+    await db.delete(donations).where(eq(donations.id, id));
+  }
+  
+  async submitDonation(id: number): Promise<void> {
+    const donation = await this.getDonationById(id);
+    if (!donation) throw new Error('Donation not found');
+    
+    // If created by bendahara, can directly approve
+    // If created by tim_pendanaan, need review
+    const newStatus = donation.createdByRole === 'bendahara' 
+      ? 'approved_bendahara' 
+      : 'pending_review';
+    
     await db
       .update(donations)
-      .set({
-        status: 'rejected',
-        rejectedBy: userId,
-        rejectedAt: new Date(),
-        rejectionReason: reason,
-      })
+      .set({ status: newStatus as any })
       .where(eq(donations.id, id));
   }
 
@@ -294,6 +332,118 @@ export class DBStorage implements IStorage {
         readAt: new Date(),
       })
       .where(eq(feedback.id, id));
+  }
+
+
+   // ==================== PURCHASE ORDER OPERATIONS ====================
+  
+  async generatePONumber(): Promise<string> {
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, '0');
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const year = now.getFullYear();
+    
+    // Get count of POs created today
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayPOs = await db
+      .select()
+      .from(purchaseOrders)
+      .where(
+        and(
+          gte(purchaseOrders.createdAt, today),
+          lt(purchaseOrders.createdAt, new Date(today.getTime() + 86400000))
+        )
+      );
+    
+    const sequence = String(todayPOs.length + 1).padStart(3, '0');
+    return `PO/${day}${month}${year}/${sequence}`;
+  }
+  
+  async createPurchaseOrder(po: InsertPurchaseOrder): Promise<PurchaseOrder> {
+    const [result] = await db.insert(purchaseOrders).values(po).$returningId();
+    const created = await this.getPurchaseOrderById(result.id);
+    if (!created) throw new Error('Failed to create purchase order');
+    return created;
+  }
+  
+  async getPurchaseOrderById(id: number): Promise<PurchaseOrder | undefined> {
+    const [po] = await db
+      .select()
+      .from(purchaseOrders)
+      .where(eq(purchaseOrders.id, id))
+      .limit(1);
+    return po;
+  }
+  
+  async getAllPurchaseOrders(): Promise<PurchaseOrder[]> {
+    return await db
+      .select()
+      .from(purchaseOrders)
+      .orderBy(desc(purchaseOrders.createdAt));
+  }
+  
+  async getPurchaseOrdersByStatus(status: string): Promise<PurchaseOrder[]> {
+    return await db
+      .select()
+      .from(purchaseOrders)
+      .where(eq(purchaseOrders.status, status as any))
+      .orderBy(desc(purchaseOrders.createdAt));
+  }
+  
+  async getPurchaseOrdersByRole(role: string): Promise<PurchaseOrder[]> {
+    return await db
+      .select()
+      .from(purchaseOrders)
+      .where(eq(purchaseOrders.createdByRole, role as any))
+      .orderBy(desc(purchaseOrders.createdAt));
+  }
+  
+  async updatePurchaseOrder(id: number, updates: Partial<PurchaseOrder>): Promise<void> {
+    await db
+      .update(purchaseOrders)
+      .set(updates)
+      .where(eq(purchaseOrders.id, id));
+  }
+  
+  async deletePurchaseOrder(id: number): Promise<void> {
+    // Items will be deleted automatically due to CASCADE
+    await db.delete(purchaseOrders).where(eq(purchaseOrders.id, id));
+  }
+  
+  // ==================== PO ITEM OPERATIONS ====================
+  
+  async createPOItem(item: InsertPOItem): Promise<POItem> {
+    const [result] = await db.insert(poItems).values(item).$returningId();
+    const [created] = await db
+      .select()
+      .from(poItems)
+      .where(eq(poItems.id, result.id))
+      .limit(1);
+    if (!created) throw new Error('Failed to create PO item');
+    return created;
+  }
+  
+  async getPOItemsByPOId(poId: number): Promise<POItem[]> {
+    return await db
+      .select()
+      .from(poItems)
+      .where(eq(poItems.poId, poId))
+      .orderBy(poItems.id);
+  }
+  
+  async updatePOItem(id: number, updates: Partial<POItem>): Promise<void> {
+    await db.update(poItems).set(updates).where(eq(poItems.id, id));
+  }
+  
+  async deletePOItem(id: number): Promise<void> {
+    await db.delete(poItems).where(eq(poItems.id, id));
+  }
+  
+  async updatePOItemSelection(id: number, isSelected: boolean): Promise<void> {
+    await db
+      .update(poItems)
+      .set({ isSelectedByBendahara: isSelected ? 1 : 0 })
+      .where(eq(poItems.id, id));
   }
 }
 

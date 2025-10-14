@@ -24,6 +24,8 @@ export default function DonationInfoSection({
     setTimeout(() => setCopiedId(null), 2000);
   };
 
+  const isSingle = bankAccounts.length === 1; // ✅ kondisi jika hanya 1 rekening
+
   return (
     <section className="py-16 md:py-20 bg-card">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
@@ -36,9 +38,16 @@ export default function DonationInfoSection({
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-4xl mx-auto">
+        {/* ✅ jika hanya 1 rekening, jadikan center */}
+        <div
+          className={
+            isSingle
+              ? "flex justify-center max-w-4xl mx-auto"
+              : "grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-4xl mx-auto"
+          }
+        >
           {bankAccounts.map((account, index) => (
-            <Card key={index} className="border-2" data-testid={`card-bank-${index}`}>
+            <Card key={index} className="border-2 w-full max-w-md" data-testid={`card-bank-${index}`}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-xl">
                   <div className="h-10 w-10 rounded-md bg-primary/10 flex items-center justify-center">
