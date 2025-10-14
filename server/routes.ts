@@ -217,58 +217,412 @@ app.post("/api/auth/login", (req, res, next) => {
 
   // ==================== DONATION ROUTES ====================
 
-  // Get all donations
+  // Get all donations with filters
   app.get("/api/donations", isAuthenticated, async (req, res, next) => {
     try {
-      const donations = await storage.getAllDonations();
-      res.json(donations);
-    } catch (error) {
-      next(error);
-    }
-  });
-
-  // Get pending donations
-  app.get("/api/donations/pending", isAuthenticated, async (req, res, next) => {
-    try {
-      const donations = await storage.getPendingDonations();
-      res.json(donations);
-    } catch (error) {
-      next(error);
-    }
-  });
-
-  // Create donation (public)
-  app.post("/api/donations", async (req, res, next) => {
-    try {
-      const validatedData = insertDonationSchema.parse(req.body);
-      const donation = await storage.createDonation(validatedData);
-      res.status(201).json(donation);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: error.errors });
+      const { status, donorType, donationType, search } = req.query;
+      
+      let donations = await storage.getAllDonations();
+      
+      // Apply filters
+      if (status) {
+        donations = donations.filter(d => d.status === status);
       }
-      next(error);
-    }
-  });
-
-  // Approve donation
-  app.post("/api/donations/:id/approve", isAuthenticated, async (req, res, next) => {
-    try {
-      const id = parseInt(req.params.id);
-      await storage.approveDonation(id, req.user!.id);
-      res.json({ message: "Donasi berhasil disetujui" });
+      if (donorType) {
+        donations = donations.filter(d => d.donorType === donorType);
+      }
+      if (donationType) {
+        donations = donations.filter(d => d.donationType === donationType);
+      }
+      if (search) {
+        const searchLower = (search as string).toLowerCase();
+        donations = donations.filter(d => 
+          d.donorName.toLowerCase().includes(searchLower) ||
+          (d.notes && d.notes.toLowerCase().includes(searchLower))
+        );
+      }
+      
+      res.json({
+        success: true,
+        message: "Daftar donasi",
+        data: donations,
+      });
     } catch (error) {
       next(error);
     }
   });
 
-  // Reject donation
-  app.post("/api/donations/:id/reject", isAuthenticated, async (req, res, next) => {
+  // Get donation detail
+  app.get("/api/donations/:id", isAuthenticated, async (req, res, next) => {
     try {
       const id = parseInt(req.params.id);
-      const { reason } = req.body;
-      await storage.rejectDonation(id, req.user!.id, reason);
-      res.json({ message: "Donasi ditolak" });
+      const donation = await storage.getDonationById(id);
+      
+      if (!donation) {
+        return res.status(404).json({
+          success: false,
+          message: "Donasi tidak ditemukan"
+        });
+      }
+      
+      res.json({
+        success: true,
+        message: "Detail donasi",
+        data: donation,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Create donation
+  app.post("/api/donations", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      
+      // Check if user can create donation
+      if (!['bendahara', 'tim_pendanaan'].includes(user.role)) {
+        return res.status(403).json({
+          success: false,
+          message: "Anda tidak memiliki akses untuk membuat donasi"
+        });
+      }
+      
+      const {
+        donorName,
+        donorEmail,
+        donorPhone,
+        donorType,
+        donationType,
+        amount,
+        showName,
+        paymentMethod,
+        paymentProofUrl,
+        notes,
+        donationDate,
+      } = req.body;
+      
+      // Validation
+      if (!donorName || !amount) {
+        return res.status(400).json({
+          success: false,
+          message: "Nama donatur dan jumlah harus diisi"
+        });
+      }
+      donationDate: new Date(donationDate)
+
+      // Create donation
+      const donation = await storage.createDonation({
+        donorName,
+        donorEmail,
+        donorPhone,
+        donorType: donorType || "warga",
+        donationType: donationType || "sumbangan",
+        amount: amount.toString(),
+        showName: showName ? 1 : 0,
+        status: "draft",
+        createdBy: user.id,
+        createdByRole: user.role as "bendahara" | "tim_pendanaan",
+        paymentMethod,
+        paymentProofUrl,
+        notes,
+        donationDate:  new Date(donationDate),
+      });
+      
+      res.status(201).json({
+        success: true,
+        message: "Donasi berhasil dibuat",
+        data: donation,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Update donation (only draft)
+  app.put("/api/donations/:id", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const id = parseInt(req.params.id);
+      
+      const donation = await storage.getDonationById(id);
+      if (!donation) {
+        return res.status(404).json({
+          success: false,
+          message: "Donasi tidak ditemukan"
+        });
+      }
+      
+      // Check ownership
+      if (donation.createdBy !== user.id) {
+        return res.status(403).json({
+          success: false,
+          message: "Anda tidak dapat mengubah donasi ini"
+        });
+      }
+      
+      // Can only update draft
+      if (donation.status !== 'draft') {
+        return res.status(400).json({
+          success: false,
+          message: "Hanya donasi dengan status draft yang dapat diubah"
+        });
+      }
+      
+      const {
+        donorName,
+        donorEmail,
+        donorPhone,
+        donorType,
+        donationType,
+        amount,
+        showName,
+        paymentMethod,
+        paymentProofUrl,
+        notes,
+        donationDate,
+      } = req.body;
+      
+      await storage.updateDonation(id, {
+        donorName,
+        donorEmail,
+        donorPhone,
+        donorType,
+        donationType,
+        amount: amount ? amount.toString() : undefined,
+        showName: showName !== undefined ? (showName ? 1 : 0) : undefined,
+        paymentMethod,
+        paymentProofUrl,
+        notes,
+        donationDate,
+      });
+      
+      res.json({
+        success: true,
+        message: "Donasi berhasil diubah",
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Submit donation for review/approval
+  app.put("/api/donations/:id/submit", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const id = parseInt(req.params.id);
+      
+      const donation = await storage.getDonationById(id);
+      if (!donation) {
+        return res.status(404).json({
+          success: false,
+          message: "Donasi tidak ditemukan"
+        });
+      }
+      
+      // Check ownership
+      if (donation.createdBy !== user.id) {
+        return res.status(403).json({
+          success: false,
+          message: "Anda tidak dapat submit donasi ini"
+        });
+      }
+      
+      if (donation.status !== 'draft') {
+        return res.status(400).json({
+          success: false,
+          message: "Donasi sudah di-submit"
+        });
+      }
+      
+      await storage.submitDonation(id);
+      
+      const newStatus = donation.createdByRole === 'bendahara' 
+        ? 'approved_bendahara' 
+        : 'pending_review';
+      
+      res.json({
+        success: true,
+        message: donation.createdByRole === 'bendahara'
+          ? "Donasi berhasil di-submit, menunggu approval ketua"
+          : "Donasi berhasil di-submit untuk review bendahara",
+        data: { status: newStatus },
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Review donation by bendahara (for tim_pendanaan's donation)
+  app.put("/api/donations/:id/review-bendahara", canApproveBendahara, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const id = parseInt(req.params.id);
+      const { action, rejectionReason } = req.body;
+      
+      const donation = await storage.getDonationById(id);
+      if (!donation) {
+        return res.status(404).json({
+          success: false,
+          message: "Donasi tidak ditemukan"
+        });
+      }
+      
+      if (donation.status !== 'pending_review') {
+        return res.status(400).json({
+          success: false,
+          message: "Donasi tidak dalam status review"
+        });
+      }
+      
+      if (action === 'reject') {
+        await storage.updateDonation(id, {
+          status: "rejected",
+          rejectedBy: user.id,
+          rejectedAt: new Date(),
+          rejectionReason,
+        });
+        
+        return res.json({
+          success: true,
+          message: "Donasi ditolak",
+          data: { status: "rejected" },
+        });
+      }
+      
+      // Approve
+      await storage.updateDonation(id, {
+        status: "approved_bendahara",
+        reviewedByBendahara: user.id,
+        reviewedByBendaharaAt: new Date(),
+      });
+      
+      res.json({
+        success: true,
+        message: "Donasi berhasil di-approve, menunggu approval ketua",
+        data: { status: "approved_bendahara" },
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Approve donation by ketua (final approval)
+  app.put("/api/donations/:id/approve-ketua", isAuthenticated,canApproveKetua, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const id = parseInt(req.params.id);
+      const { action, rejectionReason } = req.body;
+      
+      const donation = await storage.getDonationById(id);
+      if (!donation) {
+        return res.status(404).json({
+          success: false,
+          message: "Donasi tidak ditemukan"
+        });
+      }
+      
+      if (donation.status !== 'approved_bendahara') {
+        return res.status(400).json({
+          success: false,
+          message: "Donasi harus di-approve bendahara terlebih dahulu"
+        });
+      }
+      
+      if (action === 'reject') {
+        await storage.updateDonation(id, {
+          status: "rejected",
+          rejectedBy: user.id,
+          rejectedAt: new Date(),
+          rejectionReason,
+        });
+        
+        return res.json({
+          success: true,
+          message: "Donasi ditolak",
+          data: { status: "rejected" },
+        });
+      }
+      
+      // Generate cash flow description
+      const donorDisplay = donation.showName 
+        ? `${donation.donorName}`
+        : "Hamba Allah";
+      
+      const typeLabel = donation.donationType === "iuran" ? "Iuran" : "Donasi";
+      const description = `${typeLabel} dari ${donorDisplay}`;
+      
+      // Create cash flow entry
+      const cashFlow = await storage.createTransaction({
+        type: "pemasukan",
+        category: "Donasi",
+        description,
+        amount: donation.amount.toString(),
+        status: "approved",
+        createdBy: user.id,
+        createdByTeam: "admin",
+        transactionDate: donation.donationDate,
+        approvedByKetua: user.id,
+        approvedAt: new Date(),
+      });
+      
+      // Update donation
+      await storage.updateDonation(id, {
+        status: "approved",
+        approvedBy: user.id,
+        approvedAt: new Date(),
+        cashFlowId: cashFlow.id,
+      });
+      
+      res.json({
+        success: true,
+        message: "Donasi berhasil di-approve dan masuk ke cash flow",
+        data: {
+          status: "approved",
+          cashFlowId: cashFlow.id,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Delete donation (only draft)
+  app.delete("/api/donations/:id", isAuthenticated, async (req, res, next) => {
+    try {
+      const user = req.user!;
+      const id = parseInt(req.params.id);
+      
+      const donation = await storage.getDonationById(id);
+      if (!donation) {
+        return res.status(404).json({
+          success: false,
+          message: "Donasi tidak ditemukan"
+        });
+      }
+      
+      // Check ownership
+      if (donation.createdBy !== user.id) {
+        return res.status(403).json({
+          success: false,
+          message: "Anda tidak dapat menghapus donasi ini"
+        });
+      }
+      
+      // Can only delete draft
+      if (donation.status !== 'draft') {
+        return res.status(400).json({
+          success: false,
+          message: "Hanya donasi dengan status draft yang dapat dihapus"
+        });
+      }
+      
+      await storage.deleteDonation(id);
+      
+      res.json({
+        success: true,
+        message: "Donasi berhasil dihapus",
+      });
     } catch (error) {
       next(error);
     }

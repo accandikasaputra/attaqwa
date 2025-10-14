@@ -142,26 +142,55 @@ export type News = typeof news.$inferSelect;
 export type InsertNews = z.infer<typeof insertNewsSchema>;
 
 // ==================== DONATIONS ====================
+// Update existing donations table with new fields:
 export const donations = mysqlTable("donations", {
   id: int("id").primaryKey().autoincrement(),
+  
+  // Donor information
   donorName: varchar("donor_name", { length: 255 }).notNull(),
   donorEmail: varchar("donor_email", { length: 255 }),
   donorPhone: varchar("donor_phone", { length: 50 }),
+  donorType: mysqlEnum("donor_type", ["warga", "luar_warga"]).notNull().default("warga"),
+  
+  // Donation details
+  donationType: mysqlEnum("donation_type", ["sumbangan", "iuran"]).notNull().default("sumbangan"),
   amount: decimal("amount", { precision: 15, scale: 2 }).notNull(),
   
-  // Approval workflow untuk donasi
-  status: mysqlEnum("status", ["pending", "approved", "rejected"]).notNull().default("pending"),
+  // Privacy setting - NEW
+  showName: int("show_name").notNull().default(1), // 1 = show name, 0 = use alias "Hamba Allah"
+  
+  // Approval workflow
+  status: mysqlEnum("status", [
+    "draft",
+    "pending_review",      // NEW - waiting bendahara review (if created by tim_pendanaan)
+    "approved_bendahara",  // NEW - approved by bendahara (if created by tim_pendanaan)
+    "approved",            // Final approved by ketua
+    "rejected"
+  ]).notNull().default("draft"),
+  
+  // Creator tracking - NEW
+  createdBy: int("created_by").notNull().references(() => users.id),
+  createdByRole: mysqlEnum("created_by_role", ["bendahara", "tim_pendanaan"]).notNull(),
+  
+  // Approval tracking
+  reviewedByBendahara: int("reviewed_by_bendahara").references(() => users.id),
+  reviewedByBendaharaAt: datetime("reviewed_by_bendahara_at"),
   
   approvedBy: int("approved_by").references(() => users.id),
   approvedAt: datetime("approved_at"),
   
+  // Rejection
   rejectedBy: int("rejected_by").references(() => users.id),
   rejectedAt: datetime("rejected_at"),
   rejectionReason: text("rejection_reason"),
   
+  // Payment info
   paymentMethod: varchar("payment_method", { length: 100 }),
   paymentProofUrl: varchar("payment_proof_url", { length: 500 }),
   notes: text("notes"),
+  
+  // Reference to cash flow
+  cashFlowId: int("cash_flow_id"), // Reference to transactions table
   
   donationDate: datetime("donation_date").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),

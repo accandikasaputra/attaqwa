@@ -43,12 +43,14 @@ export interface IStorage {
   updateTransactionStatus(id: number, status: string, userId: number): Promise<void>;
   
   // Donation operations
+  // Donation operations - UPDATE
   createDonation(donation: InsertDonation): Promise<Donation>;
   getDonationById(id: number): Promise<Donation | undefined>;
   getAllDonations(): Promise<Donation[]>;
-  getPendingDonations(): Promise<Donation[]>;
-  approveDonation(id: number, userId: number): Promise<void>;
-  rejectDonation(id: number, userId: number, reason: string): Promise<void>;
+  getDonationsByStatus(status: string): Promise<Donation[]>;
+  updateDonation(id: number, updates: Partial<Donation>): Promise<void>;
+  deleteDonation(id: number): Promise<void>;
+  submitDonation(id: number): Promise<void>;
   
   
 
@@ -148,50 +150,62 @@ export class DBStorage implements IStorage {
   }
 
   // ==================== DONATION OPERATIONS ====================
+  
   async createDonation(donation: InsertDonation): Promise<Donation> {
     const [result] = await db.insert(donations).values(donation).$returningId();
     const created = await this.getDonationById(result.id);
     if (!created) throw new Error('Failed to create donation');
     return created;
   }
-
+  
   async getDonationById(id: number): Promise<Donation | undefined> {
-    const [donation] = await db.select().from(donations).where(eq(donations.id, id)).limit(1);
+    const [donation] = await db
+      .select()
+      .from(donations)
+      .where(eq(donations.id, id))
+      .limit(1);
     return donation;
   }
-
+  
   async getAllDonations(): Promise<Donation[]> {
-    return await db.select().from(donations).orderBy(desc(donations.createdAt));
-  }
-
-  async getPendingDonations(): Promise<Donation[]> {
     return await db
       .select()
       .from(donations)
-      .where(eq(donations.status, 'pending'))
       .orderBy(desc(donations.createdAt));
   }
-
-  async approveDonation(id: number, userId: number): Promise<void> {
+  
+  async getDonationsByStatus(status: string): Promise<Donation[]> {
+    return await db
+      .select()
+      .from(donations)
+      .where(eq(donations.status, status as any))
+      .orderBy(desc(donations.createdAt));
+  }
+  
+  async updateDonation(id: number, updates: Partial<Donation>): Promise<void> {
     await db
       .update(donations)
-      .set({
-        status: 'approved',
-        approvedBy: userId,
-        approvedAt: new Date(),
-      })
+      .set(updates)
       .where(eq(donations.id, id));
   }
-
-  async rejectDonation(id: number, userId: number, reason: string): Promise<void> {
+  
+  async deleteDonation(id: number): Promise<void> {
+    await db.delete(donations).where(eq(donations.id, id));
+  }
+  
+  async submitDonation(id: number): Promise<void> {
+    const donation = await this.getDonationById(id);
+    if (!donation) throw new Error('Donation not found');
+    
+    // If created by bendahara, can directly approve
+    // If created by tim_pendanaan, need review
+    const newStatus = donation.createdByRole === 'bendahara' 
+      ? 'approved_bendahara' 
+      : 'pending_review';
+    
     await db
       .update(donations)
-      .set({
-        status: 'rejected',
-        rejectedBy: userId,
-        rejectedAt: new Date(),
-        rejectionReason: reason,
-      })
+      .set({ status: newStatus as any })
       .where(eq(donations.id, id));
   }
 
