@@ -1,65 +1,60 @@
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import DonationInfoSection from '@/components/DonationInfoSection';
 import CashFlowTable from '@/components/CashFlowTable';
 import CashFlowSummary from '@/components/CashFlowSummary';
+import { getCashFlowStatistics, getCashFlowList } from "@/services/cashflowApi";
+import api from "@/services/api";
 
 export default function InformasiDonasi() {
-  const mockBankAccounts = [
-    {
-      bank: 'Bank Syariah Indonesia (BSI)',
-      accountNumber: '7123456789',
-      accountName: 'Masjid At-Taqwa',
-    },
-    {
-      bank: 'Bank Mandiri Syariah',
-      accountNumber: '1234567890',
-      accountName: 'Yayasan Masjid At-Taqwa',
-    },
-  ];
+  const [filters, setFilters] = useState({
+    type: "",
+    search: "",
+    page: 1,
+    limit: 10,
+  });
 
-  const mockCashFlow = [
-    {
-      id: 1,
-      type: 'pemasukan' as const,
-      category: 'Donasi',
-      description: 'Donasi dari Bapak Ahmad untuk pembangunan masjid',
-      amount: 5000000,
-      transactionDate: '2025-01-05',
+  // Fetch bank accounts
+  const { data: bankAccountsData } = useQuery({
+    queryKey: ["bank-accounts"],
+    queryFn: async () => {
+      const { data } = await api.get("/bank-accounts");
+      return data;
     },
-    {
-      id: 2,
-      type: 'pengeluaran' as const,
-      category: 'Material',
-      description: 'Pembelian semen dan pasir untuk tahap pondasi',
-      amount: 15000000,
-      transactionDate: '2025-01-04',
-    },
-    {
-      id: 3,
-      type: 'pemasukan' as const,
-      category: 'Donasi',
-      description: 'Donasi kolektif dari jamaah Jumat',
-      amount: 8000000,
-      transactionDate: '2025-01-03',
-    },
-    {
-      id: 4,
-      type: 'pengeluaran' as const,
-      category: 'Tenaga Kerja',
-      description: 'Upah tukang dan pekerja bulan Desember',
-      amount: 25000000,
-      transactionDate: '2024-12-31',
-    },
-    {
-      id: 5,
-      type: 'pemasukan' as const,
-      category: 'Donasi',
-      description: 'Transfer dari Ibu Siti',
-      amount: 10000000,
-      transactionDate: '2024-12-28',
-    },
-  ];
+  });
+
+  // Fetch cash flow statistics
+  const { data: statsData } = useQuery({
+    queryKey: ["cashflow-statistics"],
+    queryFn: () => getCashFlowStatistics(),
+  });
+
+  // Fetch cash flow list with filters (only approved)
+  const { data: listData, isLoading } = useQuery({
+    queryKey: ["cashflow-list", filters],
+    queryFn: () => getCashFlowList({ ...filters, status: "approved" }),
+  });
+
+  const stats = statsData?.data;
+  const transactions = listData?.data?.transactions || [];
+  const pagination = listData?.data?.pagination;
+
+  // Format bank accounts for DonationInfoSection
+  const bankAccounts = bankAccountsData?.map((account: any) => ({
+    bank: account.bankName,
+    accountNumber: account.accountNumber,
+    accountName: account.accountHolder,
+  })) || [];
+
+  const handleFilterChange = (newFilters: { type: string; search: string }) => {
+    setFilters({ ...filters, ...newFilters, page: 1 });
+  };
+
+  const handlePageChange = (page: number) => {
+    setFilters({ ...filters, page });
+  };
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -75,12 +70,12 @@ export default function InformasiDonasi() {
         </div>
 
         <CashFlowSummary
-          totalPemasukan={250000000}
-          totalPengeluaran={180000000}
-          saldo={70000000}
+          totalPemasukan={stats?.totalPemasukan || 0}
+          totalPengeluaran={stats?.totalPengeluaran || 0}
+          saldo={stats?.saldo || 0}
         />
 
-        <DonationInfoSection bankAccounts={mockBankAccounts} />
+        <DonationInfoSection bankAccounts={bankAccounts} />
 
         <section className="py-16 md:py-20 bg-background">
           <div className="max-w-7xl mx-auto px-6 lg:px-8">
@@ -92,7 +87,13 @@ export default function InformasiDonasi() {
                 Daftar lengkap pemasukan dan pengeluaran yang telah disetujui
               </p>
             </div>
-            <CashFlowTable items={mockCashFlow} />
+            <CashFlowTable 
+              items={transactions}
+              isLoading={isLoading}
+              pagination={pagination}
+              onFilterChange={handleFilterChange}
+              onPageChange={handlePageChange}
+            />
           </div>
         </section>
       </main>

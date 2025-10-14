@@ -766,6 +766,160 @@ app.post("/api/auth/login", (req, res, next) => {
     }
   });
 
+  // Get cash flow statistics
+  app.get("/api/cashflow/statistics", async (req, res, next) => {
+    try {
+      const { startDate, endDate } = req.query;
+      
+      let transactions = await storage.getAllTransactions();
+      
+      // Filter by date range if provided
+      if (startDate && endDate) {
+        transactions = transactions.filter(t => {
+          const txDate = new Date(t.transactionDate);
+          return txDate >= new Date(startDate as string) && 
+                txDate <= new Date(endDate as string);
+        });
+      }
+      
+      // Only count approved transactions
+      const approved = transactions.filter(t => t.status === 'approved');
+      
+      const totalPemasukan = approved
+        .filter(t => t.type === 'pemasukan')
+        .reduce((sum, t) => sum + Number(t.amount), 0);
+      
+      const totalPengeluaran = approved
+        .filter(t => t.type === 'pengeluaran')
+        .reduce((sum, t) => sum + Number(t.amount), 0);
+      
+      const saldo = totalPemasukan - totalPengeluaran;
+      
+      // Category breakdown for pengeluaran
+      const categoryBreakdown: Record<string, number> = {};
+      approved
+        .filter(t => t.type === 'pengeluaran')
+        .forEach(t => {
+          if (!categoryBreakdown[t.category]) {
+            categoryBreakdown[t.category] = 0;
+          }
+          categoryBreakdown[t.category] += Number(t.amount);
+        });
+      
+      // Monthly trend (last 6 months)
+      const monthlyTrend: any[] = [];
+      const now = new Date();
+      for (let i = 5; i >= 0; i--) {
+        const month = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
+        
+        const monthTransactions = approved.filter(t => {
+          const txDate = new Date(t.transactionDate);
+          return txDate >= month && txDate <= monthEnd;
+        });
+        
+        const pemasukan = monthTransactions
+          .filter(t => t.type === 'pemasukan')
+          .reduce((sum, t) => sum + Number(t.amount), 0);
+        
+        const pengeluaran = monthTransactions
+          .filter(t => t.type === 'pengeluaran')
+          .reduce((sum, t) => sum + Number(t.amount), 0);
+        
+        monthlyTrend.push({
+          month: month.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' }),
+          pemasukan,
+          pengeluaran,
+          net: pemasukan - pengeluaran,
+        });
+      }
+      
+      res.json({
+        success: true,
+        data: {
+          totalPemasukan,
+          totalPengeluaran,
+          saldo,
+          categoryBreakdown,
+          monthlyTrend,
+          totalTransactions: approved.length,
+          pendingApprovals: transactions.filter(t => 
+            t.status === 'pending' || 
+            t.status === 'approved_bendahara'
+          ).length,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Get cash flow list with filters (enhanced version)
+  app.get("/api/cashflow", async (req, res, next) => {
+    try {
+      const { 
+        type, 
+        category, 
+        status, 
+        startDate, 
+        endDate, 
+        search,
+        page = 1,
+        limit = 20,
+      } = req.query;
+      
+      let transactions = await storage.getAllTransactions();
+      
+      // Apply filters
+      if (type) {
+        transactions = transactions.filter(t => t.type === type);
+      }
+      if (category) {
+        transactions = transactions.filter(t => t.category === category);
+      }
+      if (status) {
+        transactions = transactions.filter(t => t.status === status);
+      }
+      if (startDate && endDate) {
+        transactions = transactions.filter(t => {
+          const txDate = new Date(t.transactionDate);
+          return txDate >= new Date(startDate as string) && 
+                txDate <= new Date(endDate as string);
+        });
+      }
+      if (search) {
+        const searchLower = (search as string).toLowerCase();
+        transactions = transactions.filter(t =>
+          t.description.toLowerCase().includes(searchLower) ||
+          t.category.toLowerCase().includes(searchLower)
+        );
+      }
+      
+      // Pagination
+      const pageNum = parseInt(page as string);
+      const limitNum = parseInt(limit as string);
+      const startIndex = (pageNum - 1) * limitNum;
+      const endIndex = startIndex + limitNum;
+      
+      const paginatedTransactions = transactions.slice(startIndex, endIndex);
+      
+      res.json({
+        success: true,
+        data: {
+          transactions: paginatedTransactions,
+          pagination: {
+            page: pageNum,
+            limit: limitNum,
+            total: transactions.length,
+            totalPages: Math.ceil(transactions.length / limitNum),
+          },
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // Get all POs with filters
   app.get("/api/po", authMiddleware, async (req, res, next) => {
     try {

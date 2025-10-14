@@ -39,6 +39,10 @@ import DonationApprove from "@/pages/admin/DonationApprove";
 import AdminCashflowList from "@/pages/admin/AdminCashflowList";
 // import AdminCashflowForm from "@/pages/admin/AdminCashflowForm";
 
+import CashFlowDashboard from "@/pages/admin/CashFlowDashboard";
+import CashFlowList from "@/pages/admin/CashFlowList";
+import CashFlow from "@/pages/CashFlow";
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -51,6 +55,7 @@ function App() {
             <Route path="/informasi-donasi" element={<InformasiDonasi />} />
             <Route path="/saran" element={<Saran />} />
             <Route path="*" element={<NotFound />} />
+            <Route path="/informasi-donasi-test" element={<CashFlow />} />
 
             {/* Halaman login admin */}
             <Route path="/admin/login" element={<AdminLogin />} />
@@ -58,7 +63,7 @@ function App() {
             {/* Admin Routes (nested under /admin) */}
             <Route element={<ProtectedRoute />}>
               <Route path="/admin" element={<AdminLayout />}>
-                <Route index element={<AdminDashboard />} />
+                <Route index element={<CashFlowDashboard />} />
                 <Route path="berita" element={<AdminBeritaList />} />
                 <Route path="berita/new" element={<AdminBeritaForm />} />
                 <Route path="berita/:id/edit" element={<AdminBeritaForm />} />
@@ -76,6 +81,9 @@ function App() {
                 <Route path="donations/:id/edit" element={<DonationForm />} />
                 <Route path="donations/:id/review" element={<DonationReview />} />
                 <Route path="donations/:id/approve" element={<DonationApprove />} />
+
+                {/* <Route path="cashflow/dashboard" element={<CashFlowDashboard />} /> */}
+                <Route path="cashflow" element={<CashFlowList />} />
 
               </Route>
             </Route>
