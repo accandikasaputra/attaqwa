@@ -16,7 +16,7 @@ import { z } from "zod";
 export const users = mysqlTable("users", {
   id: int("id", { unsigned: true }).primaryKey().autoincrement(),
 
-  id: int("id", { unsigned: true }).primaryKey().autoincrement(),
+  //: int("id", { unsigned: true }).primaryKey().autoincrement(),
 
   email: varchar("email", { length: 255 }).notNull().unique(),
   password: varchar("password", { length: 255 }).notNull(),
@@ -29,7 +29,7 @@ export const users = mysqlTable("users", {
     "tim_procurement"
   ]).notNull().default("admin"),
   isActive: int("is_active", { unsigned: true }).notNull().default(1), // 1 = active, 0 = inactive
-  isActive: int("is_active", { unsigned: true }).notNull().default(1), // 1 = active, 0 = inactive
+  //isActive: int("is_active", { unsigned: true }).notNull().default(1), // 1 = active, 0 = inactive
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
 });
@@ -160,10 +160,10 @@ export const donations = mysqlTable("donations", {
   
   // Donation details
   donationType: mysqlEnum("donation_type", ["sumbangan", "iuran"]).notNull().default("sumbangan"),
-  donorType: mysqlEnum("donor_type", ["warga", "luar_warga"]).notNull().default("warga"),
+  //donorType: mysqlEnum("donor_type", ["warga", "luar_warga"]).notNull().default("warga"),
   
   // Donation details
-  donationType: mysqlEnum("donation_type", ["sumbangan", "iuran"]).notNull().default("sumbangan"),
+  //donationType: mysqlEnum("donation_type", ["sumbangan", "iuran"]).notNull().default("sumbangan"),
   amount: decimal("amount", { precision: 15, scale: 2 }).notNull(),
   
   // Privacy setting - NEW
