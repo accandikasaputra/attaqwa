@@ -21,6 +21,7 @@ import {
   insertNewsSchema,
   insertBankAccountSchema,
   insertFeedbackSchema,
+  insertFAQSchema,
 } from "@shared/schema";
 import { z } from "zod";
 
@@ -704,8 +705,51 @@ app.post("/api/auth/login", (req, res, next) => {
   // Get all feedback (admin)
   app.get("/api/feedback", isAuthenticated, async (req, res, next) => {
     try {
-      const allFeedback = await storage.getAllFeedback();
-      res.json(allFeedback);
+      const { status, search } = req.query;
+      
+      let feedbackList = await storage.getAllFeedback();
+      
+      // Apply filters
+      if (status) {
+        feedbackList = feedbackList.filter(f => f.status === status);
+      }
+      if (search) {
+        const searchLower = (search as string).toLowerCase();
+        feedbackList = feedbackList.filter(f =>
+          f.name.toLowerCase().includes(searchLower) ||
+          f.subject.toLowerCase().includes(searchLower) ||
+          f.message.toLowerCase().includes(searchLower)
+        );
+      }
+      
+      res.json({
+        success: true,
+        message: "Daftar feedback",
+        data: feedbackList,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Get feedback by ID
+  app.get("/api/feedback/:id", isAuthenticated, async (req, res, next) => {
+    try {
+      const id = parseInt(req.params.id);
+      const feedbackItem = await storage.getFeedbackById(id);
+      
+      if (!feedbackItem) {
+        return res.status(404).json({
+          success: false,
+          message: "Feedback tidak ditemukan"
+        });
+      }
+      
+      res.json({
+        success: true,
+        message: "Detail feedback",
+        data: feedbackItem,
+      });
     } catch (error) {
       next(error);
     }
@@ -716,21 +760,227 @@ app.post("/api/auth/login", (req, res, next) => {
     try {
       const validatedData = insertFeedbackSchema.parse(req.body);
       const feedbackItem = await storage.createFeedback(validatedData);
-      res.status(201).json(feedbackItem);
+      
+      res.status(201).json({
+        success: true,
+        message: "Feedback berhasil dikirim",
+        data: feedbackItem,
+      });
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: error.errors });
+        return res.status(400).json({ 
+          success: false,
+          message: "Validation error",
+          errors: error.errors 
+        });
       }
       next(error);
     }
   });
 
   // Mark feedback as read
-  app.post("/api/feedback/:id/read", isAuthenticated, async (req, res, next) => {
+  app.put("/api/feedback/:id/read", isAuthenticated, async (req, res, next) => {
     try {
       const id = parseInt(req.params.id);
       await storage.markFeedbackAsRead(id, req.user!.id);
-      res.json({ message: "Feedback ditandai sudah dibaca" });
+      
+      res.json({
+        success: true,
+        message: "Feedback ditandai sudah dibaca",
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Reply to feedback
+  app.put("/api/feedback/:id/reply", isAuthenticated, async (req, res, next) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { reply } = req.body;
+      
+      if (!reply || !reply.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: "Reply tidak boleh kosong"
+        });
+      }
+      
+      await storage.replyFeedback(id, reply.trim(), req.user!.id);
+      
+      res.json({
+        success: true,
+        message: "Reply berhasil dikirim",
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Delete feedback
+  app.delete("/api/feedback/:id", isAuthenticated, async (req, res, next) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteFeedback(id);
+      
+      res.json({
+        success: true,
+        message: "Feedback berhasil dihapus",
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // ==================== FAQ ROUTES ====================
+
+  // Get all FAQs (public - only active)
+  app.get("/api/faqs", async (req, res, next) => {
+    try {
+      const faqs = await storage.getActiveFAQs();
+      
+      res.json({
+        success: true,
+        message: "Daftar FAQ",
+        data: faqs,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Get all FAQs (admin - including inactive)
+  app.get("/api/faqs/all", isAuthenticated, async (req, res, next) => {
+    try {
+      const { category, search } = req.query;
+      
+      let faqsList = await storage.getAllFAQs();
+      
+      // Apply filters
+      if (category) {
+        faqsList = faqsList.filter(f => f.category === category);
+      }
+      if (search) {
+        const searchLower = (search as string).toLowerCase();
+        faqsList = faqsList.filter(f =>
+          f.question.toLowerCase().includes(searchLower) ||
+          f.answer.toLowerCase().includes(searchLower)
+        );
+      }
+      
+      res.json({
+        success: true,
+        message: "Daftar FAQ",
+        data: faqsList,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Get FAQ by ID
+  app.get("/api/faqs/:id", async (req, res, next) => {
+    try {
+      const id = parseInt(req.params.id);
+      const faq = await storage.getFAQById(id);
+      
+      if (!faq) {
+        return res.status(404).json({
+          success: false,
+          message: "FAQ tidak ditemukan"
+        });
+      }
+      
+      res.json({
+        success: true,
+        message: "Detail FAQ",
+        data: faq,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Create FAQ
+  app.post("/api/faqs", isAuthenticated, async (req, res, next) => {
+    try {
+      const validatedData = insertFAQSchema.parse({
+        ...req.body,
+        createdBy: req.user!.id,
+      });
+      
+      const faq = await storage.createFAQ(validatedData);
+      
+      res.status(201).json({
+        success: true,
+        message: "FAQ berhasil dibuat",
+        data: faq,
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          success: false,
+          message: "Validation error",
+          errors: error.errors 
+        });
+      }
+      next(error);
+    }
+  });
+
+  // Update FAQ
+  app.put("/api/faqs/:id", isAuthenticated, async (req, res, next) => {
+    try {
+      const id = parseInt(req.params.id);
+      const updates = {
+        ...req.body,
+        updatedBy: req.user!.id,
+      };
+      
+      await storage.updateFAQ(id, updates);
+      
+      res.json({
+        success: true,
+        message: "FAQ berhasil diupdate",
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Delete FAQ
+  app.delete("/api/faqs/:id", isAuthenticated, async (req, res, next) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteFAQ(id);
+      
+      res.json({
+        success: true,
+        message: "FAQ berhasil dihapus",
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Reorder FAQs
+  app.put("/api/faqs/reorder", isAuthenticated, async (req, res, next) => {
+    try {
+      const { orders } = req.body;
+      
+      if (!Array.isArray(orders)) {
+        return res.status(400).json({
+          success: false,
+          message: "Orders must be an array"
+        });
+      }
+      
+      await storage.reorderFAQs(orders);
+      
+      res.json({
+        success: true,
+        message: "FAQ berhasil diurutkan",
+      });
     } catch (error) {
       next(error);
     }

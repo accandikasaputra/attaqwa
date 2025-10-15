@@ -58,7 +58,7 @@ export const transactions = mysqlTable("transactions", {
   ]).notNull().default("draft"),
   
   // Team origin (untuk tracking workflow)
-  createdBy: int("created_by").notNull().references(() => users.id),
+  createdBy: int("created_by" , { unsigned: true }).notNull().references(() => users.id),
   createdByTeam: mysqlEnum("created_by_team", [
     "admin",
     "tim_konstruksi",
@@ -66,12 +66,12 @@ export const transactions = mysqlTable("transactions", {
   ]).notNull(),
   
   // Approval tracking
-  approvedByBendahara: int("approved_by_bendahara").references(() => users.id),
+  approvedByBendahara: int("approved_by_bendahara" , { unsigned: true }).references(() => users.id),
   approvedByKetuaAt: datetime("approved_by_ketua_at"),
-  approvedByKetua: int("approved_by_ketua").references(() => users.id),
+  approvedByKetua: int("approved_by_ketua" , { unsigned: true }).references(() => users.id),
   approvedAt: datetime("approved_at"),
   
-  rejectedBy: int("rejected_by").references(() => users.id),
+  rejectedBy: int("rejected_by" , { unsigned: true }).references(() => users.id),
   rejectedAt: datetime("rejected_at"),
   rejectionReason: text("rejection_reason"),
   
@@ -97,7 +97,7 @@ export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
 export const transactionApprovals = mysqlTable("transaction_approvals", {
   id: int("id").primaryKey().autoincrement(),
   transactionId: int("transaction_id").notNull().references(() => transactions.id),
-  approverUserId: int("approver_user_id").notNull().references(() => users.id),
+  approverUserId: int("approver_user_id" , { unsigned: true }).notNull().references(() => users.id),
   approverRole: mysqlEnum("approver_role", ["bendahara", "ketua"]).notNull(),
   action: mysqlEnum("action", ["approved", "rejected"]).notNull(),
   comments: text("comments"),
@@ -126,7 +126,7 @@ export const news = mysqlTable("news", {
   status: mysqlEnum("status", ["draft", "published"]).notNull().default("draft"),
   publishedAt: datetime("published_at"),
   
-  authorId: int("author_id").notNull().references(() => users.id),
+  authorId: int("author_id" , { unsigned: true }).notNull().references(() => users.id),
   
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
@@ -169,18 +169,18 @@ export const donations = mysqlTable("donations", {
   ]).notNull().default("draft"),
   
   // Creator tracking - NEW
-  createdBy: int("created_by").notNull().references(() => users.id),
+  createdBy: int("created_by" , { unsigned: true }).notNull().references(() => users.id),
   createdByRole: mysqlEnum("created_by_role", ["bendahara", "tim_pendanaan"]).notNull(),
   
   // Approval tracking
-  reviewedByBendahara: int("reviewed_by_bendahara").references(() => users.id),
+  reviewedByBendahara: int("reviewed_by_bendahara" , { unsigned: true }).references(() => users.id),
   reviewedByBendaharaAt: datetime("reviewed_by_bendahara_at"),
   
-  approvedBy: int("approved_by").references(() => users.id),
+  approvedBy: int("approved_by" , { unsigned: true }).references(() => users.id),
   approvedAt: datetime("approved_at"),
   
   // Rejection
-  rejectedBy: int("rejected_by").references(() => users.id),
+  rejectedBy: int("rejected_by" , { unsigned: true }).references(() => users.id),
   rejectedAt: datetime("rejected_at"),
   rejectionReason: text("rejection_reason"),
   
@@ -228,6 +228,7 @@ export type BankAccount = typeof bankAccounts.$inferSelect;
 export type InsertBankAccount = z.infer<typeof insertBankAccountSchema>;
 
 // ==================== FEEDBACK ====================
+// Table: feedback (already exists, just ensure it's complete)
 export const feedback = mysqlTable("feedback", {
   id: int("id").primaryKey().autoincrement(),
   name: varchar("name", { length: 255 }).notNull(),
@@ -237,8 +238,11 @@ export const feedback = mysqlTable("feedback", {
   message: text("message").notNull(),
   
   status: mysqlEnum("status", ["new", "read", "replied"]).notNull().default("new"),
-  readBy: int("read_by").references(() => users.id),
+  reply: text("reply"), // Admin reply
+  readBy: int("read_by" , { unsigned: true }).references(() => users.id),
   readAt: datetime("read_at"),
+  repliedBy: int("replied_by" , { unsigned: true }).references(() => users.id),
+  repliedAt: datetime("replied_at"),
   
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -250,6 +254,33 @@ export const insertFeedbackSchema = createInsertSchema(feedback).omit({
 
 export type Feedback = typeof feedback.$inferSelect;
 export type InsertFeedback = z.infer<typeof insertFeedbackSchema>;
+
+
+//==================== FAQ ===================
+// Table: faqs (NEW)
+export const faqs = mysqlTable("faqs", {
+  id: int("id").primaryKey().autoincrement(),
+  question: varchar("question", { length: 500 }).notNull(),
+  answer: text("answer").notNull(),
+  category: varchar("category", { length: 100 }).notNull().default("Umum"),
+  displayOrder: int("display_order").notNull().default(0),
+  isActive: int("is_active").notNull().default(1), // 1 = active, 0 = inactive
+  
+  createdBy: int("created_by" , { unsigned: true }).notNull().references(() => users.id),
+  updatedBy: int("updated_by" , { unsigned: true }).references(() => users.id),
+  
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
+});
+
+export const insertFAQSchema = createInsertSchema(faqs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type FAQ = typeof faqs.$inferSelect;
+export type InsertFAQ = z.infer<typeof insertFAQSchema>;
 
 // ==================== PURCHASE ORDERS ====================
 export const purchaseOrders = mysqlTable("purchase_orders", {
@@ -268,18 +299,18 @@ export const purchaseOrders = mysqlTable("purchase_orders", {
   ]).notNull().default("draft"),
   
   // Creator tracking
-  createdBy: int("created_by").notNull().references(() => users.id),
+  createdBy: int("created_by" , { unsigned: true }).notNull().references(() => users.id),
   createdByRole: mysqlEnum("created_by_role", ["tim_konstruksi", "tim_procurement"]).notNull(),
   
   // Approval tracking
-  reviewedByBendahara: int("reviewed_by_bendahara").references(() => users.id),
+  reviewedByBendahara: int("reviewed_by_bendahara" , { unsigned: true }).references(() => users.id),
   reviewedByBendaharaAt: datetime("reviewed_by_bendahara_at"),
   
-  approvedByKetua: int("approved_by_ketua").references(() => users.id),
+  approvedByKetua: int("approved_by_ketua" , { unsigned: true }).references(() => users.id),
   approvedByKetuaAt: datetime("approved_by_ketua_at"),
   
   // Rejection
-  rejectedBy: int("rejected_by").references(() => users.id),
+  rejectedBy: int("rejected_by" , { unsigned: true }).references(() => users.id),
   rejectedAt: datetime("rejected_at"),
   rejectionReason: text("rejection_reason"),
   

@@ -1,16 +1,9 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { Plus, Eye, Trash2, Send } from "lucide-react";
+import { Plus, Eye, Trash2, Send, Search, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -55,36 +48,32 @@ export default function DonationList() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
+
   const [filters, setFilters] = useState({
     status: "",
     donorType: "",
     donationType: "",
     search: "",
   });
-  
+  const [showFilters, setShowFilters] = useState(false);
+
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [submitId, setSubmitId] = useState<number | null>(null);
-  
-  // Get user role
+
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   const userRole = user.role;
-  
-  // Fetch donations
+  const canCreateDonation = ["bendahara", "tim_pendanaan"].includes(userRole);
+
   const { data, isLoading } = useQuery({
     queryKey: ["donations", filters],
     queryFn: () => getDonations(filters),
   });
-  
-  // Delete mutation
+
   const deleteMutation = useMutation({
     mutationFn: deleteDonation,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["donations"] });
-      toast({
-        title: "Berhasil",
-        description: "Donasi berhasil dihapus",
-      });
+      toast({ title: "Berhasil", description: "Donasi berhasil dihapus" });
       setDeleteId(null);
     },
     onError: (error: any) => {
@@ -95,8 +84,7 @@ export default function DonationList() {
       });
     },
   });
-  
-  // Submit mutation
+
   const submitMutation = useMutation({
     mutationFn: submitDonation,
     onSuccess: () => {
@@ -115,50 +103,110 @@ export default function DonationList() {
       });
     },
   });
-  
-  const canCreateDonation = ["bendahara", "tim_pendanaan"].includes(userRole);
-  
+
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="p-4 sm:p-6 space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold">Donasi & Iuran</h1>
           <p className="text-gray-500">Kelola data donasi dan iuran warga</p>
         </div>
         {canCreateDonation && (
-          <Button onClick={() => navigate("/admin/donations/new")}>
-            <Plus className="mr-2 h-4 w-4" />
-            Input Donasi
+          <Button onClick={() => navigate("/admin/donations/new")} className="flex items-center gap-2">
+            <Plus className="h-4 w-4" /> Input Donasi
           </Button>
         )}
       </div>
-      
-      {/* Filters */}
-      <div className="flex gap-4 flex-wrap">
-        <Input
-          placeholder="Cari nama donatur..."
-          value={filters.search}
-          onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-          className="max-w-xs"
-        />
-        
-        <Select
-          value={filters.status ?? ""}
-          onValueChange={(value) => setFilters({ ...filters, status: value })}
-        >
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Semua Tipe Donasi" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__Semua__">Semua Tipe</SelectItem>
-            <SelectItem value="sumbangan">Sumbangan</SelectItem>
-            <SelectItem value="iuran">Iuran</SelectItem>
-          </SelectContent>
-        </Select>
+
+      {/* Filter section */}
+      <div className="bg-white rounded-lg shadow-sm p-4 space-y-4">
+        {/* Search + toggle */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Cari nama donatur..."
+              value={filters.search}
+              onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+              className="pl-10"
+            />
+          </div>
+
+          {/* Toggle for mobile */}
+          <Button
+            type="button"
+            variant="outline"
+            className="sm:hidden"
+            onClick={() => setShowFilters(!showFilters)}
+          >
+            <Filter className="h-4 w-4 mr-2" /> Filter
+          </Button>
+
+          {/* Inline filters for desktop */}
+          <div className="hidden sm:flex gap-4">
+            <select
+              value={filters.status}
+              onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+            >
+              <option value="">Semua Status</option>
+              <option value="draft">Draft</option>
+              <option value="pending_review">Pending Review</option>
+              <option value="approved_bendahara">Approved Bendahara</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
+
+            <select
+              value={filters.donationType}
+              onChange={(e) => setFilters({ ...filters, donationType: e.target.value })}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+            >
+              <option value="">Semua Jenis</option>
+              <option value="sumbangan">Sumbangan</option>
+              <option value="iuran">Iuran</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Expanded mobile filter */}
+        {showFilters && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-gray-200 pt-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+              <select
+                value={filters.status}
+                onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              >
+                <option value="">Semua Status</option>
+                <option value="draft">Draft</option>
+                <option value="pending_review">Pending Review</option>
+                <option value="approved_bendahara">Approved Bendahara</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Jenis Donasi</label>
+              <select
+                value={filters.donationType}
+                onChange={(e) => setFilters({ ...filters, donationType: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              >
+                <option value="">Semua Jenis</option>
+                <option value="sumbangan">Sumbangan</option>
+                <option value="iuran">Iuran</option>
+              </select>
+            </div>
+          </div>
+        )}
       </div>
-      
+
       {/* Table */}
-      <div className="border rounded-lg">
+      <div className="bg-white border rounded-lg shadow-sm overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -169,36 +217,30 @@ export default function DonationList() {
               <TableHead>Jumlah</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Privacy</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead className="text-right">Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center">
+                <TableCell colSpan={8} className="text-center py-8">
                   Loading...
                 </TableCell>
               </TableRow>
             ) : data?.data?.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center">
+                <TableCell colSpan={8} className="text-center py-8 text-gray-500">
                   Tidak ada data
                 </TableCell>
               </TableRow>
             ) : (
               data?.data?.map((donation: any) => (
                 <TableRow key={donation.id}>
-                  <TableCell>
-                    {new Date(donation.donationDate).toLocaleDateString("id-ID")}
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    {donation.donorName}
-                  </TableCell>
+                  <TableCell>{new Date(donation.donationDate).toLocaleDateString("id-ID")}</TableCell>
+                  <TableCell className="font-medium">{donation.donorName}</TableCell>
                   <TableCell>{donorTypeMap[donation.donorType]}</TableCell>
                   <TableCell>{donationTypeMap[donation.donationType]}</TableCell>
-                  <TableCell>
-                    Rp {Number(donation.amount).toLocaleString("id-ID")}
-                  </TableCell>
+                  <TableCell>Rp {Number(donation.amount).toLocaleString("id-ID")}</TableCell>
                   <TableCell>
                     <Badge variant={statusMap[donation.status]?.variant}>
                       {statusMap[donation.status]?.label}
@@ -220,27 +262,24 @@ export default function DonationList() {
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
-                      
-                      {/* Submit button */}
+
                       {donation.status === "draft" && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setSubmitId(donation.id)}
-                        >
-                          <Send className="h-4 w-4" />
-                        </Button>
-                      )}
-                      
-                      {/* Delete button - only draft */}
-                      {donation.status === "draft" && (
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => setDeleteId(donation.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setSubmitId(donation.id)}
+                          >
+                            <Send className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => setDeleteId(donation.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </>
                       )}
                     </div>
                   </TableCell>
@@ -250,8 +289,8 @@ export default function DonationList() {
           </TableBody>
         </Table>
       </div>
-      
-      {/* Delete Dialog */}
+
+      {/* Dialogs */}
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -271,8 +310,7 @@ export default function DonationList() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      
-      {/* Submit Dialog */}
+
       <AlertDialog open={!!submitId} onOpenChange={() => setSubmitId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -285,9 +323,7 @@ export default function DonationList() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Batal</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => submitId && submitMutation.mutate(submitId)}
-            >
+            <AlertDialogAction onClick={() => submitId && submitMutation.mutate(submitId)}>
               Submit
             </AlertDialogAction>
           </AlertDialogFooter>
