@@ -16,6 +16,8 @@ import { z } from "zod";
 export const users = mysqlTable("users", {
   id: int("id", { unsigned: true }).primaryKey().autoincrement(),
 
+  id: int("id", { unsigned: true }).primaryKey().autoincrement(),
+
   email: varchar("email", { length: 255 }).notNull().unique(),
   password: varchar("password", { length: 255 }).notNull(),
   fullName: varchar("full_name", { length: 255 }).notNull(),
@@ -26,6 +28,7 @@ export const users = mysqlTable("users", {
     "tim_konstruksi",
     "tim_procurement"
   ]).notNull().default("admin"),
+  isActive: int("is_active", { unsigned: true }).notNull().default(1), // 1 = active, 0 = inactive
   isActive: int("is_active", { unsigned: true }).notNull().default(1), // 1 = active, 0 = inactive
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
@@ -143,13 +146,20 @@ export type InsertNews = z.infer<typeof insertNewsSchema>;
 
 // ==================== DONATIONS ====================
 // Update existing donations table with new fields:
+// Update existing donations table with new fields:
 export const donations = mysqlTable("donations", {
   id: int("id").primaryKey().autoincrement(),
+  
+  // Donor information
   
   // Donor information
   donorName: varchar("donor_name", { length: 255 }).notNull(),
   donorEmail: varchar("donor_email", { length: 255 }),
   donorPhone: varchar("donor_phone", { length: 50 }),
+  donorType: mysqlEnum("donor_type", ["warga", "luar_warga"]).notNull().default("warga"),
+  
+  // Donation details
+  donationType: mysqlEnum("donation_type", ["sumbangan", "iuran"]).notNull().default("sumbangan"),
   donorType: mysqlEnum("donor_type", ["warga", "luar_warga"]).notNull().default("warga"),
   
   // Donation details
