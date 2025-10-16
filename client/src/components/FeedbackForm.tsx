@@ -1,160 +1,229 @@
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Send } from 'lucide-react';
+import { useState, useRef } from "react";
+import { useMutation } from "@tanstack/react-query";
+//import ReCAPTCHA from "react-google-recaptcha";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
+import { createFeedback } from "@/services/feedbackApi";
+import { Send, CheckCircle } from "lucide-react";
 
 export default function FeedbackForm() {
+  const { toast } = useToast();
+  //const recaptchaRef = useRef<ReCAPTCHA>(null);
+  
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    type: '',
-    subject: '',
-    message: '',
+    name: "",
+    email: "",
+    phone: "",
+    subject: "",
+    message: "",
   });
-
-  const handleSubmit = (e: React.FormEvent) => {
+  
+  const [isSuccess, setIsSuccess] = useState(false);
+  
+  const createMutation = useMutation({
+    mutationFn: createFeedback,
+    onSuccess: () => {
+      setIsSuccess(true);
+      toast({
+        title: "Berhasil!",
+        description: "Terima kasih atas masukan Anda. Kami akan segera meresponnya.",
+      });
+      
+      // Reset form
+      setFormData({
+        name: "",
+        email: "",
+        phone: "",
+        subject: "",
+        message: "",
+      });
+      
+      
+      // Hide success message after 5 seconds
+      setTimeout(() => setIsSuccess(false), 5000);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Gagal mengirim feedback. Silakan coba lagi.",
+        variant: "destructive",
+      });
+      
+      
+    },
+  });
+  
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Feedback submitted:', formData);
-    alert('Terima kasih atas masukan Anda!');
-    setFormData({
-      name: '',
-      email: '',
-      phone: '',
-      type: '',
-      subject: '',
-      message: '',
+    
+    // Validate required fields
+    if (!formData.name.trim() || !formData.subject.trim() || !formData.message.trim()) {
+      toast({
+        title: "Error",
+        description: "Nama, subjek, dan pesan harus diisi",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    
+    
+    // Submit
+    createMutation.mutate({
+      name: formData.name.trim(),
+      email: formData.email.trim() || undefined,
+      phone: formData.phone.trim() || undefined,
+      subject: formData.subject.trim(),
+      message: formData.message.trim(),
     });
   };
-
+  
+  const handleChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+  
+  // If using environment variable is not available, use placeholder
+  const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY || "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"; // Test key
+  
   return (
-    <section className="py-16 md:py-20 bg-background">
-      <div className="max-w-4xl mx-auto px-6 lg:px-8">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
-            Saran & Masukan
-          </h2>
-          <p className="text-lg text-muted-foreground">
-            Kami sangat menghargai setiap masukan dari Anda
-          </p>
-        </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Formulir Saran</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label htmlFor="name" className="text-sm font-medium">
-                    Nama Lengkap <span className="text-destructive">*</span>
-                  </label>
-                  <Input
-                    id="name"
-                    data-testid="input-name"
-                    placeholder="Masukkan nama Anda"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label htmlFor="email" className="text-sm font-medium">
-                    Email
-                  </label>
-                  <Input
-                    id="email"
-                    type="email"
-                    data-testid="input-email"
-                    placeholder="email@example.com"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label htmlFor="phone" className="text-sm font-medium">
-                    No. Telepon
-                  </label>
-                  <Input
-                    id="phone"
-                    data-testid="input-phone"
-                    placeholder="08xxxxxxxxxx"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label htmlFor="type" className="text-sm font-medium">
-                    Jenis <span className="text-destructive">*</span>
-                  </label>
-                  <Select
-                    value={formData.type}
-                    onValueChange={(value) => setFormData({ ...formData, type: value })}
-                    required
-                  >
-                    <SelectTrigger id="type" data-testid="select-type">
-                      <SelectValue placeholder="Pilih jenis" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="kritik">Kritik</SelectItem>
-                      <SelectItem value="saran">Saran</SelectItem>
-                      <SelectItem value="pertanyaan">Pertanyaan</SelectItem>
-                      <SelectItem value="lainnya">Lainnya</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-2xl">Kirim Saran & Masukan</CardTitle>
+        <CardDescription>
+          Sampaikan saran, kritik, atau pertanyaan Anda kepada kami
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {isSuccess ? (
+          <div className="py-12 text-center space-y-4">
+            <div className="flex justify-center">
+              <div className="h-16 w-16 bg-green-100 rounded-full flex items-center justify-center">
+                <CheckCircle className="h-10 w-10 text-green-600" />
               </div>
-
-              <div className="space-y-2">
-                <label htmlFor="subject" className="text-sm font-medium">
-                  Subjek <span className="text-destructive">*</span>
-                </label>
+            </div>
+            <div>
+              <h3 className="text-xl font-semibold text-green-600 mb-2">
+                Pesan Berhasil Dikirim!
+              </h3>
+              <p className="text-gray-600">
+                Terima kasih atas masukan Anda. Kami akan segera meresponnya.
+              </p>
+            </div>
+            <Button
+              onClick={() => setIsSuccess(false)}
+              variant="outline"
+            >
+              Kirim Pesan Lain
+            </Button>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="name">
+                  Nama <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => handleChange("name", e.target.value)}
+                  placeholder="Nama lengkap Anda"
+                  required
+                  disabled={createMutation.isPending}
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => handleChange("email", e.target.value)}
+                  placeholder="email@example.com"
+                  disabled={createMutation.isPending}
+                />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="phone">No. Telepon</Label>
+                <Input
+                  id="phone"
+                  value={formData.phone}
+                  onChange={(e) => handleChange("phone", e.target.value)}
+                  placeholder="08xxxxxxxxxx"
+                  disabled={createMutation.isPending}
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="subject">
+                  Subjek <span className="text-red-500">*</span>
+                </Label>
                 <Input
                   id="subject"
-                  data-testid="input-subject"
-                  placeholder="Subjek masukan Anda"
                   value={formData.subject}
-                  onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                  onChange={(e) => handleChange("subject", e.target.value)}
+                  placeholder="Subjek pesan"
                   required
+                  disabled={createMutation.isPending}
                 />
               </div>
-
-              <div className="space-y-2">
-                <label htmlFor="message" className="text-sm font-medium">
-                  Pesan <span className="text-destructive">*</span>
-                </label>
-                <Textarea
-                  id="message"
-                  data-testid="textarea-message"
-                  placeholder="Tuliskan masukan Anda di sini..."
-                  rows={6}
-                  value={formData.message}
-                  onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                  required
-                />
-              </div>
-
-              <Button type="submit" size="lg" className="w-full" data-testid="button-submit-feedback">
-                <Send className="mr-2 h-5 w-5" />
-                Kirim Masukan
+            </div>
+            
+            <div>
+              <Label htmlFor="message">
+                Pesan <span className="text-red-500">*</span>
+              </Label>
+              <Textarea
+                id="message"
+                value={formData.message}
+                onChange={(e) => handleChange("message", e.target.value)}
+                placeholder="Tulis saran, kritik, atau pertanyaan Anda di sini..."
+                rows={6}
+                required
+                disabled={createMutation.isPending}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Minimal 10 karakter
+              </p>
+            </div>
+            
+            
+            
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Button
+                type="submit"
+                disabled={createMutation.isPending}
+                className="w-full sm:flex-1"
+              >
+                {createMutation.isPending ? (
+                  <>
+                    <span className="animate-spin mr-2">⏳</span>
+                    Mengirim...
+                  </>
+                ) : (
+                  <>
+                    <Send className="mr-2 h-4 w-4" />
+                    Kirim Pesan
+                  </>
+                )}
               </Button>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
-    </section>
+            </div>
+            
+            <p className="text-xs text-gray-500 text-center sm:text-left">
+              Dengan mengirim pesan ini, Anda menyetujui bahwa data Anda akan digunakan 
+              untuk merespon masukan Anda sesuai dengan kebijakan privasi kami.
+            </p>
+          </form>
+        )}
+      </CardContent>
+    </Card>
   );
 }

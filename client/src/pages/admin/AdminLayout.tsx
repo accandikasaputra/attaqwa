@@ -54,6 +54,12 @@ export default function AdminLayout() {
             <Link to="/admin/cashflow" className="py-2 px-3 rounded hover:bg-gray-100">
               Cash Flow
             </Link>
+            <Link to="/admin/feedback" className="py-2 px-3 rounded hover:bg-gray-100">
+              Kritik dan Saran
+            </Link>
+            <Link to="/admin/faqs" className="py-2 px-3 rounded hover:bg-gray-100">
+              FAQ
+            </Link>
 
             <button
               onClick={handleLogout}

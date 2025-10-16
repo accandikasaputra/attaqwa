@@ -43,6 +43,13 @@ import CashFlowDashboard from "@/pages/admin/CashFlowDashboard";
 import CashFlowList from "@/pages/admin/CashFlowList";
 import CashFlow from "@/pages/CashFlow";
 
+import FeedbackList from "@/pages/admin/feedbackList";
+import FeedbackDetail from "@/pages/admin/FeedbackDetail";
+import FAQList from "@/pages/admin/FAQList";
+import FAQForm from "@/pages/admin/FAQForm";
+import FAQ from "@/pages/FAQ";
+
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -56,6 +63,7 @@ function App() {
             <Route path="/saran" element={<Saran />} />
             <Route path="*" element={<NotFound />} />
             <Route path="/informasi-donasi-test" element={<CashFlow />} />
+            <Route path="/faqs" element={<FAQ />} />
 
             {/* Halaman login admin */}
             <Route path="/admin/login" element={<AdminLogin />} />
@@ -84,6 +92,12 @@ function App() {
 
                 {/* <Route path="cashflow/dashboard" element={<CashFlowDashboard />} /> */}
                 <Route path="cashflow" element={<CashFlowList />} />
+
+                <Route path="feedback" element={<FeedbackList />} />
+                <Route path="feedback/:id" element={<FeedbackDetail />} />
+                <Route path="faqs" element={<FAQList />} />
+                <Route path="faqs/new" element={<FAQForm />} />
+                <Route path="faqs/:id/edit" element={<FAQForm />} />
 
               </Route>
             </Route>
