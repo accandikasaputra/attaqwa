@@ -9,6 +9,7 @@ import {
   feedback,
   purchaseOrders,
   poItems,
+  faqs,
   type User,
   type InsertUser,
   type Transaction,
@@ -25,6 +26,8 @@ import {
   type InsertPurchaseOrder,
   type POItem,
   type InsertPOItem,
+  type FAQ,
+  type InsertFAQ,
 } from '@shared/schema';
 import { eq, desc, and, or, gte, lt } from 'drizzle-orm';
 
@@ -69,10 +72,22 @@ export interface IStorage {
   getActiveBankAccounts(): Promise<BankAccount[]>;
   updateBankAccount(id: number, updates: Partial<BankAccount>): Promise<void>;
   
-  // Feedback operations
+   // Feedback operations
   createFeedback(feedback: InsertFeedback): Promise<Feedback>;
   getAllFeedback(): Promise<Feedback[]>;
+  getFeedbackById(id: number): Promise<Feedback | undefined>;
   markFeedbackAsRead(id: number, userId: number): Promise<void>;
+  replyFeedback(id: number, reply: string, userId: number): Promise<void>;
+  deleteFeedback(id: number): Promise<void>;
+  
+  // FAQ operations
+  createFAQ(faq: InsertFAQ): Promise<FAQ>;
+  getAllFAQs(): Promise<FAQ[]>;
+  getActiveFAQs(): Promise<FAQ[]>;
+  getFAQById(id: number): Promise<FAQ | undefined>;
+  updateFAQ(id: number, updates: Partial<FAQ>): Promise<void>;
+  deleteFAQ(id: number): Promise<void>;
+  reorderFAQs(orders: { id: number; displayOrder: number }[]): Promise<void>;
 
 
    // Purchase Order operations
@@ -308,6 +323,8 @@ export class DBStorage implements IStorage {
   }
 
   // ==================== FEEDBACK OPERATIONS ====================
+  // ==================== FEEDBACK OPERATIONS ====================
+  
   async createFeedback(insertFeedback: InsertFeedback): Promise<Feedback> {
     const [result] = await db.insert(feedback).values(insertFeedback).$returningId();
     const [created] = await db
@@ -323,6 +340,15 @@ export class DBStorage implements IStorage {
     return await db.select().from(feedback).orderBy(desc(feedback.createdAt));
   }
 
+  async getFeedbackById(id: number): Promise<Feedback | undefined> {
+    const [result] = await db
+      .select()
+      .from(feedback)
+      .where(eq(feedback.id, id))
+      .limit(1);
+    return result;
+  }
+
   async markFeedbackAsRead(id: number, userId: number): Promise<void> {
     await db
       .update(feedback)
@@ -332,6 +358,79 @@ export class DBStorage implements IStorage {
         readAt: new Date(),
       })
       .where(eq(feedback.id, id));
+  }
+
+  async replyFeedback(id: number, reply: string, userId: number): Promise<void> {
+    await db
+      .update(feedback)
+      .set({
+        status: 'replied',
+        reply,
+        repliedBy: userId,
+        repliedAt: new Date(),
+      })
+      .where(eq(feedback.id, id));
+  }
+
+  async deleteFeedback(id: number): Promise<void> {
+    await db.delete(feedback).where(eq(feedback.id, id));
+  }
+  
+  // ==================== FAQ OPERATIONS ====================
+  
+  async createFAQ(faq: InsertFAQ): Promise<FAQ> {
+    const [result] = await db.insert(faqs).values(faq).$returningId();
+    const [created] = await db
+      .select()
+      .from(faqs)
+      .where(eq(faqs.id, result.id))
+      .limit(1);
+    if (!created) throw new Error('Failed to create FAQ');
+    return created;
+  }
+
+  async getAllFAQs(): Promise<FAQ[]> {
+    return await db
+      .select()
+      .from(faqs)
+      .orderBy(faqs.displayOrder, desc(faqs.createdAt));
+  }
+
+  async getActiveFAQs(): Promise<FAQ[]> {
+    return await db
+      .select()
+      .from(faqs)
+      .where(eq(faqs.isActive, 1))
+      .orderBy(faqs.displayOrder);
+  }
+
+  async getFAQById(id: number): Promise<FAQ | undefined> {
+    const [faq] = await db
+      .select()
+      .from(faqs)
+      .where(eq(faqs.id, id))
+      .limit(1);
+    return faq;
+  }
+
+  async updateFAQ(id: number, updates: Partial<FAQ>): Promise<void> {
+    await db
+      .update(faqs)
+      .set(updates)
+      .where(eq(faqs.id, id));
+  }
+
+  async deleteFAQ(id: number): Promise<void> {
+    await db.delete(faqs).where(eq(faqs.id, id));
+  }
+
+  async reorderFAQs(orders: { id: number; displayOrder: number }[]): Promise<void> {
+    for (const order of orders) {
+      await db
+        .update(faqs)
+        .set({ displayOrder: order.displayOrder })
+        .where(eq(faqs.id, order.id));
+    }
   }
 
 

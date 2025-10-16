@@ -408,28 +408,33 @@ export default function NewsForm() {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-4 sticky bottom-0 bg-gray-50 p-6 -mx-6 -mb-6 border-t border-gray-200">
+          <div
+            className="flex flex-col sm:flex-row gap-3 sm:gap-4 sticky bottom-0 bg-gray-50 p-4 sm:p-6 -mx-6 -mb-6 border-t border-gray-200"
+          >
+            {/* Tombol Batal */}
             <button
               type="button"
               onClick={() => navigate('/admin/berita')}
-              className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
+              className="w-full sm:w-auto px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
             >
               Batal
             </button>
 
+            {/* Tombol Draft */}
             <button
               type="button"
               onClick={(e) => handleSubmit(e, true)}
               disabled={loading}
-              className="px-6 py-3 border-2 border-emerald-600 text-emerald-600 rounded-lg font-semibold hover:bg-emerald-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full sm:w-auto px-6 py-3 border-2 border-emerald-600 text-emerald-600 rounded-lg font-semibold hover:bg-emerald-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Simpan sebagai Draft
             </button>
 
+            {/* Tombol Publish */}
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full sm:flex-1 inline-flex items-center justify-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <>
@@ -444,6 +449,7 @@ export default function NewsForm() {
               )}
             </button>
           </div>
+
         </form>
       </div>
     </div>

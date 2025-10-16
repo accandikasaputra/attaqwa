@@ -26,6 +26,15 @@ export default defineConfig({
       "@assets": path.resolve(import.meta.dirname, "attached_assets"),
     },
   },
+  optimizeDeps: {
+    include: [
+      '@radix-ui/react-select',
+      '@radix-ui/react-dropdown-menu',
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-popover',
+      '@radix-ui/react-tooltip',
+    ],
+  },
   root: path.resolve(import.meta.dirname, "client"),
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
@@ -37,7 +46,7 @@ export default defineConfig({
       deny: ["**/.*"],
     },
     hmr: {
-      overlay: false, // Disables the full-screen error overlay
+      overlay: true, // Disables the full-screen error overlay
     },
   },
 });

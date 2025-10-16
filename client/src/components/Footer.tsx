@@ -35,6 +35,11 @@ export default function Footer() {
                   Saran
                 </a>
               </li>
+              <li>
+                <a href="/faqs" className="text-gray-300 hover:text-white transition-colors text-sm">
+                  FAQ
+                </a>
+              </li>
             </ul>
           </div>
 

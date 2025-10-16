@@ -10,6 +10,15 @@ export default defineConfig({
       "@assets": path.resolve(__dirname, "./src/assets"),
     },
   },
+  optimizeDeps: {
+    include: [
+      '@radix-ui/react-select',
+      '@radix-ui/react-dropdown-menu',
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-popover',
+      '@radix-ui/react-tooltip',
+    ],
+  },
   server: {
     host: true, // agar bisa diakses dari jaringan luar (ngrok, LAN, dll)
     port: 5173,
@@ -20,7 +29,7 @@ export default defineConfig({
       "all", // biar fleksibel (opsional)
     ],
     hmr: {
-      overlay: false, // Disables the full-screen error overlay
+      overlay: true, // Disables the full-screen error overlay
     },
   },
   preview: {
