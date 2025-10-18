@@ -32,7 +32,7 @@ export default function Home() {
     queryKey: ["bank-accounts"],
     queryFn: async () => {
       const { data } = await api.get("/bank-accounts");
-      return data;
+      return data.data;
     },
   });
 

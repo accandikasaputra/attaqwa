@@ -21,7 +21,7 @@ export default function InformasiDonasi() {
     queryKey: ["bank-accounts"],
     queryFn: async () => {
       const { data } = await api.get("/bank-accounts");
-      return data;
+      return data.data;
     },
   });
 
@@ -38,8 +38,8 @@ export default function InformasiDonasi() {
   });
 
   const stats = statsData?.data;
-  const transactions = listData?.data?.transactions || [];
-  const pagination = listData?.data?.pagination;
+  const transactions = listData?.data || [];
+  const pagination = listData?.pagination;
 
   // Format bank accounts for DonationInfoSection
   const bankAccounts = bankAccountsData?.map((account: any) => ({
