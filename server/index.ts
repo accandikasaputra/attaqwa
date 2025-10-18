@@ -1,9 +1,11 @@
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
 import passport from "./auth";
-import { registerRoutes } from "./routes";
+import { registerRoutes } from "./routes.ts";
 import { setupVite, serveStatic, log } from "./vite";
 import http from "http";
+import { errorHandler } from "./middleware/errorHandler";
+import { notFoundHandler } from "./middleware/notFoundHandler";
 
 const app = express();
 app.use(express.json());
@@ -42,7 +44,9 @@ app.use(passport.session());
   } else {
     serveStatic(app);
   }
-
+  // Error handlers
+  app.use(notFoundHandler);
+  app.use(errorHandler);
   server.listen(port, "0.0.0.0", () => {
     log(`🚀 Server running at http://localhost:${port}`);
   });

@@ -254,6 +254,8 @@ export default function POForm() {
                         <option value="box">Box</option>
                         <option value="sak">Sak</option>
                         <option value="unit">Unit</option>
+                        <option value="hari">Hari</option>
+                        
                       </select>
                     </div>
 

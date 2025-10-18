@@ -13,7 +13,7 @@ export default function AboutSection() {
           </p>
           <div className="mt-12">
             <img
-              src={mosqueImage}
+              src="https://i.ibb.co.com/43yps3N/Whats-App-Image-2025-10-17-at-22-30-54.jpg"
               alt="Masjid At-Taqwa"
               className="rounded-2xl shadow-lg w-full max-w-2xl mx-auto"
               data-testid="img-mosque"

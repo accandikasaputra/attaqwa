@@ -44,8 +44,8 @@ export default function CashFlowList() {
     queryFn: () => getCashFlowList(filters),
   });
 
-  const transactions = data?.data?.transactions || [];
-  const pagination = data?.data?.pagination;
+  const transactions = data?.data || [];
+  const pagination = data?.pagination;
 
   const approvedTransactions = transactions.filter((t: any) => t.status === "approved");
   const viewTotalPemasukan = approvedTransactions

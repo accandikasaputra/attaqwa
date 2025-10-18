@@ -29,7 +29,7 @@ import {
   type FAQ,
   type InsertFAQ,
 } from '@shared/schema';
-import { eq, desc, and, or, gte, lt } from 'drizzle-orm';
+import { eq, desc, and, or, gte, lt, sql } from 'drizzle-orm';
 
 // Storage interface for all CRUD operations
 export interface IStorage {
@@ -442,17 +442,11 @@ export class DBStorage implements IStorage {
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const year = now.getFullYear();
     
-    // Get count of POs created today
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    // Use CURDATE() for MySQL
     const todayPOs = await db
       .select()
       .from(purchaseOrders)
-      .where(
-        and(
-          gte(purchaseOrders.createdAt, today),
-          lt(purchaseOrders.createdAt, new Date(today.getTime() + 86400000))
-        )
-      );
+      .where(sql`DATE(${purchaseOrders.createdAt}) = CURDATE()`);
     
     const sequence = String(todayPOs.length + 1).padStart(3, '0');
     return `PO/${day}${month}${year}/${sequence}`;
