@@ -5,10 +5,13 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar, ArrowRight } from "lucide-react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
+import { useNavigate } from "react-router-dom";
+
 
 interface NewsItem {
   id: number;
   title: string;
+  slug: string;
   excerpt: string;
   category: string;
   publishedAt: string;
@@ -29,6 +32,7 @@ export default function NewsSection({ news = [] }: NewsSectionProps) {
     };
     return colors[category] || colors.lainnya;
   };
+  const navigate = useNavigate();
 
   return (
     <section className="py-16 md:py-20 bg-background">
@@ -55,8 +59,11 @@ export default function NewsSection({ news = [] }: NewsSectionProps) {
 
         {/* News list */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {news.map((item) => (
-            <Card key={item.id} className="overflow-hidden hover-elevate" data-testid={`card-news-${item.id}`}>
+          {
+            
+          news.map((item) => (
+            <Card key={item.id} className="overflow-hidden hover:shadow-lg transition-all cursor-pointer" data-testid={`card-news-${item.id}`} onClick={() => navigate(`/berita/${item.slug}`)}
+>
               {item.imageUrl && (
                 <div className="aspect-video w-full overflow-hidden">
                   <img

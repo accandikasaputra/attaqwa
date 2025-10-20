@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Pagination } from "@/components/Pagination";
+
 import {
   Card,
   CardContent,
@@ -34,6 +36,9 @@ export default function FAQList() {
   const [filters, setFilters] = useState({
     category: "",
     search: "",
+    page: 1,
+    limit: 10,
+
   });
   
   const [deleteId, setDeleteId] = useState<number | null>(null);
@@ -43,7 +48,8 @@ export default function FAQList() {
     queryKey: ["faqs-admin", filters],
     queryFn: () => getAllFAQs(filters),
   });
-  
+  const pagination = data?.pagination;
+
   // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: deleteFAQ,
@@ -243,7 +249,18 @@ export default function FAQList() {
                 </div>
               </CardContent>
             </Card>
+            
           ))
+        )}
+        {/* Pagination */}
+        {pagination && (
+          <Pagination
+            currentPage={pagination.page}
+            totalPages={pagination.totalPages}
+            total={pagination.total}
+            limit={pagination.limit}
+            onPageChange={(page) => setFilters({ ...filters, page })}
+          />
         )}
       </div>
       

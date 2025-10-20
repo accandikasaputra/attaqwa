@@ -8,6 +8,7 @@ import { Calendar, ArrowRight } from "lucide-react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import api from "@/services/api";
+import { useNavigate } from "react-router-dom";
 
 export default function Berita() {
   const [selectedCategory, setSelectedCategory] = useState<string>("semua");
@@ -57,11 +58,12 @@ export default function Berita() {
       setLoading(false);
     }
   };
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchNews();
   }, [selectedCategory]);
-
+  
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
@@ -100,7 +102,7 @@ export default function Berita() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {newsList.map((item) => (
-                <Card key={item.id} className="overflow-hidden hover-elevate">
+                <Card key={item.id} className="overflow-hidden hover:shadow-lg transition-all cursor-pointer" onClick={() => navigate(`/berita/${item.slug}`)}>
                   {item.imageUrl && (
                     <div className="aspect-video w-full overflow-hidden">
                       <img

@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Download, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Pagination } from "@/components/Pagination";
 import {
   Table,
   TableBody,
@@ -37,7 +38,7 @@ export default function CashFlowList() {
     startDate: "",
     endDate: "",
     page: 1,
-    limit: 20,
+    limit: 10,
   });
   const { data, isLoading } = useQuery({
     queryKey: ["cashflow-list", filters],
@@ -222,32 +223,14 @@ export default function CashFlowList() {
           </Table>
 
           {/* Pagination */}
-          {pagination && pagination.totalPages > 1 && (
-            <div className="flex justify-between items-center mt-4 flex-wrap gap-3">
-              <p className="text-sm text-gray-500">
-                Menampilkan {((pagination.page - 1) * pagination.limit) + 1} -{" "}
-                {Math.min(pagination.page * pagination.limit, pagination.total)} dari{" "}
-                {pagination.total} transaksi
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={pagination.page === 1}
-                  onClick={() => setFilters({ ...filters, page: pagination.page - 1 })}
-                >
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={pagination.page === pagination.totalPages}
-                  onClick={() => setFilters({ ...filters, page: pagination.page + 1 })}
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
+          {pagination && (
+            <Pagination
+              currentPage={pagination.page}
+              totalPages={pagination.totalPages}
+              total={pagination.total}
+              limit={pagination.limit}
+              onPageChange={(page) => setFilters({ ...filters, page })}
+            />
           )}
         </CardContent>
       </Card>

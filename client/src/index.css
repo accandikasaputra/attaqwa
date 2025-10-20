@@ -2,7 +2,31 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Responsive iframe wrapper */
+.prose iframe {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  max-width: 100%;
+  height: auto;
+}
 
+@media (max-width: 640px) {
+  .prose iframe {
+    height: 200px;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1024px) {
+  .prose iframe {
+    height: 400px;
+  }
+}
+
+@media (min-width: 1025px) {
+  .prose iframe {
+    height: 500px;
+  }
+}
 /* ✅ FIX untuk komponen Radix UI seperti Select, Dialog, Dropdown */
 [data-radix-popper-content-wrapper],
 [data-radix-portal] {

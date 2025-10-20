@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Plus, Eye, Trash2, FileEdit, Send, Filter, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Pagination } from "@/components/Pagination";
 import {
   Table,
   TableBody,
@@ -50,6 +51,8 @@ export default function POList() {
     status: "",
     category: "",
     search: "",
+    page: 1,
+    limit: 10, // Add limit
   });
   const [showFilters, setShowFilters] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
@@ -63,6 +66,8 @@ export default function POList() {
     queryKey: ["pos", filters],
     queryFn: () => getPOs(filters),
   });
+
+  const pagination = data?.pagination;
 
   const deleteMutation = useMutation({
     mutationFn: deletePO,
@@ -292,6 +297,16 @@ export default function POList() {
             )}
           </TableBody>
         </Table>
+        {/* Pagination */}
+        {pagination && (
+          <Pagination
+            currentPage={pagination.page}
+            totalPages={pagination.totalPages}
+            total={pagination.total}
+            limit={pagination.limit}
+            onPageChange={(page) => setFilters({ ...filters, page })}
+          />
+        )}
       </div>
 
       {/* Delete Dialog */}

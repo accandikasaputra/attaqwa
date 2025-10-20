@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 // Public pages
 import Home from "@/pages/Home";
 import Berita from "@/pages/Berita";
+import BeritaDetail from "@/pages/BeritaDetail";
 import InformasiDonasi from "@/pages/InformasiDonasi";
 import Saran from "@/pages/Saran";
 import NotFound from "@/pages/not-found";
@@ -59,6 +60,7 @@ function App() {
             {/* Public Routes */}
             <Route path="/" element={<Home />} />
             <Route path="/berita" element={<Berita />} />
+            <Route path="/berita/:slug" element={<BeritaDetail />} />
             <Route path="/informasi-donasi" element={<InformasiDonasi />} />
             <Route path="/saran" element={<Saran />} />
             <Route path="*" element={<NotFound />} />

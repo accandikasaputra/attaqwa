@@ -5,6 +5,7 @@ import { Eye, Trash2, Filter, Search, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Pagination } from "@/components/Pagination";
 import {
   Table,
   TableBody,
@@ -48,6 +49,8 @@ export default function FeedbackList() {
   const [filters, setFilters] = useState({
     status: "",
     search: "",
+    page: 1,
+    limit: 10,
   });
   
   const [deleteId, setDeleteId] = useState<number | null>(null);
@@ -57,7 +60,7 @@ export default function FeedbackList() {
     queryKey: ["feedback", filters],
     queryFn: () => getAllFeedback(filters),
   });
-  
+  const pagination = data?.pagination;
   // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: deleteFeedback,
@@ -221,6 +224,16 @@ export default function FeedbackList() {
                 )}
               </TableBody>
             </Table>
+            {/* Pagination */}
+            {pagination && (
+              <Pagination
+                currentPage={pagination.page}
+                totalPages={pagination.totalPages}
+                total={pagination.total}
+                limit={pagination.limit}
+                onPageChange={(page) => setFilters({ ...filters, page })}
+              />
+            )}
           </div>
           
           {/* Mobile Cards */}
