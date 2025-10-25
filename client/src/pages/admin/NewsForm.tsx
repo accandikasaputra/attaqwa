@@ -1,13 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { newsApi, type News } from '../../services/newsApi';
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 
+import './NewsForm.css'; 
+
 import {
   ArrowLeft,
   Save,
-  Eye,
   RefreshCw,
   Image as ImageIcon,
 } from 'lucide-react';
@@ -27,9 +28,12 @@ export default function NewsForm() {
   const { id } = useParams<{ id: string }>();
   const isEdit = !!id;
 
+  // ✅ ALL HOOKS MUST BE AT THE TOP - BEFORE ANY RETURN
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(isEdit);
   const [autoSlug, setAutoSlug] = useState(true);
+  const [isHTMLMode, setIsHTMLMode] = useState(false); // ✅ Moved here
+  const [htmlContent, setHTMLContent] = useState(''); // ✅ Moved here
 
   const [formData, setFormData] = useState({
     title: '',
@@ -42,6 +46,36 @@ export default function NewsForm() {
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // ReactQuill modules configuration - ✅ useMemo must be before any return
+  const modules = useMemo(() => ({
+    toolbar: {
+      container: [
+        [{ header: [1, 2, 3, 4, 5, 6, false] }],
+        ['bold', 'italic', 'underline', 'strike'],
+        [{ color: [] }, { background: [] }],
+        [{ list: 'ordered' }, { list: 'bullet' }],
+        [{ indent: '-1' }, { indent: '+1' }],
+        [{ align: [] }],
+        ['link', 'image', 'video'],
+        ['blockquote', 'code-block'],
+        ['clean'],
+      ],
+    },
+    clipboard: {
+      matchVisual: false,
+    },
+  }), []);
+  
+  const formats = [
+    'header',
+    'bold', 'italic', 'underline', 'strike',
+    'color', 'background',
+    'list', 'bullet', 'indent',
+    'link', 'image', 'video',
+    'blockquote', 'code-block',
+    'align',
+  ];
 
   // Load data for edit
   useEffect(() => {
@@ -65,7 +99,12 @@ export default function NewsForm() {
         category: news.category,
         status: news.status,
       });
-      setAutoSlug(false); // Disable auto slug when editing
+      setAutoSlug(false);
+      
+      // ✅ Set HTML content if exists
+      if (news.content) {
+        setHTMLContent(news.content);
+      }
     } catch (error: any) {
       alert(error.response?.data?.message || 'Gagal memuat data');
       navigate('/admin/berita');
@@ -90,7 +129,6 @@ export default function NewsForm() {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
 
-    // Clear error for this field
     if (errors[name]) {
       setErrors((prev) => {
         const newErrors = { ...prev };
@@ -138,45 +176,73 @@ export default function NewsForm() {
     return Object.keys(newErrors).length === 0;
   };
 
+  // Toggle HTML mode
+  const toggleHTMLMode = () => {
+    if (isHTMLMode) {
+      // Switch back to WYSIWYG
+      setFormData(prev => ({ ...prev, content: htmlContent }));
+      setIsHTMLMode(false);
+    } else {
+      // Switch to HTML
+      setHTMLContent(formData.content);
+      setIsHTMLMode(true);
+    }
+  };
+  
+  // Update content based on mode
+  const handleContentChange = (value: string) => {
+    if (isHTMLMode) {
+      setHTMLContent(value);
+    } else {
+      setFormData(prev => ({ ...prev, content: value }));
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent, isDraft: boolean = false) => {
     e.preventDefault();
 
+    // ✅ Sync HTML content back to formData before validation
+    if (isHTMLMode) {
+      setFormData(prev => ({ ...prev, content: htmlContent }));
+    }
+
     if (!validate()) {
-        alert('Mohon lengkapi semua field yang wajib diisi');
-        return;
+      alert('Mohon lengkapi semua field yang wajib diisi');
+      return;
     }
 
     try {
-        setLoading(true);
+      setLoading(true);
 
-        const submitData: Omit<News, "id" | "createdAt" | "updatedAt" | "authorId"> = {
-            ...formData,
-            status: (isDraft ? 'draft' : 'published') as 'draft' | 'published',
-            publishedAt: isDraft ? null : new Date().toISOString(),
-        };
+      const submitData: Omit<News, "id" | "createdAt" | "updatedAt" | "authorId"> = {
+        ...formData,
+        content: isHTMLMode ? htmlContent : formData.content, // ✅ Use correct content
+        status: (isDraft ? 'draft' : 'published') as 'draft' | 'published',
+        publishedAt: isDraft ? null : new Date().toISOString(),
+      };
 
-        if (isEdit) {
+      if (isEdit) {
         await newsApi.update(parseInt(id!), submitData);
         alert('Berita berhasil diupdate');
-        } else {
+      } else {
         await newsApi.create(submitData);
         alert('Berita berhasil dibuat');
-        }
+      }
 
-        navigate('/admin/berita');
+      navigate('/admin/berita');
     } catch (error: any) {
-        console.error('Error saving news:', error);
-        alert(
+      console.error('Error saving news:', error);
+      alert(
         error.response?.data?.message ||
-            error.response?.data?.errors?.[0]?.message ||
-            'Gagal menyimpan berita'
-        );
+        error.response?.data?.errors?.[0]?.message ||
+        'Gagal menyimpan berita'
+      );
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
-    };
+  };
 
-
+  // ✅ NOW SAFE TO RETURN EARLY (all hooks are called)
   if (loadingData) {
     return (
       <div className="p-6">
@@ -267,7 +333,7 @@ export default function NewsForm() {
           </div>
 
           {/* Category & Status */}
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div className="bg-white rounded-lg shadow-sm p-6">
               <label className="block text-sm font-semibold text-gray-900 mb-2">
                 Kategori <span className="text-red-500">*</span>
@@ -324,72 +390,85 @@ export default function NewsForm() {
             </p>
           </div>
 
-          {/* Content */}
+          {/* Content Section with HTML Toggle */}
           <div className="bg-white rounded-lg shadow-sm p-6">
-            <label className="block text-sm font-semibold text-gray-900 mb-2">
-              Konten <span className="text-red-500">*</span>
-            </label>
-
-            {/* 🧩 Ganti textarea menjadi ReactQuill */}
-            <ReactQuill
-              value={formData.content}
-              onChange={(value) =>
-                setFormData((prev) => ({ ...prev, content: value }))
-              }
-              theme="snow"
-              modules={{
-                toolbar: [
-                  [{ header: [1, 2, 3, false] }],
-                  ["bold", "italic", "underline", "strike"],
-                  [{ list: "ordered" }, { list: "bullet" }],
-                  ["link", "blockquote", "code-block"],
-                  ["clean"],
-                ],
-              }}
-              formats={[
-                "header",
-                "bold",
-                "italic",
-                "underline",
-                "strike",
-                "list",
-                "bullet",
-                "link",
-                "blockquote",
-                "code-block",
-              ]}
-              className={`border-2 rounded-lg ${
-                errors.content ? "border-red-300" : "border-gray-200"
-              }`}
-            />
-
-            {errors.content && (
-              <p className="mt-1 text-sm text-red-600">{errors.content}</p>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-semibold text-gray-900">
+                Konten <span className="text-red-500">*</span>
+              </label>
+              <button
+                type="button"
+                onClick={toggleHTMLMode}
+                className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                {isHTMLMode ? (
+                  <>
+                    <span>📝</span> Mode WYSIWYG
+                  </>
+                ) : (
+                  <>
+                    <span>&lt;/&gt;</span> Mode HTML
+                  </>
+                )}
+              </button>
+            </div>
+            
+            {isHTMLMode ? (
+              // HTML Code Editor
+              <textarea
+                value={htmlContent}
+                onChange={(e) => handleContentChange(e.target.value)}
+                className="w-full h-96 px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent font-mono text-sm"
+                placeholder="Masukkan HTML code di sini..."
+              />
+            ) : (
+              // Rich Text Editor
+              <ReactQuill
+                value={formData.content}
+                onChange={handleContentChange}
+                theme="snow"
+                modules={modules}
+                formats={formats}
+                className={`border-2 rounded-lg ${
+                  errors.content ? "border-red-300" : "border-gray-200"
+                }`}
+              />
             )}
-
-            <p className="mt-1 text-xs text-gray-500">
-              Tips: Anda bisa menulis dengan format teks atau klik tombol {'</>'} untuk
-              melihat HTML (mode script)
-            </p>
-</div>
-
+            
+            {errors.content && (
+              <p className="mt-2 text-sm text-red-600">{errors.content}</p>
+            )}
+            
+            <div className="mt-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+              <p className="text-xs text-gray-500">
+                {isHTMLMode 
+                  ? 'Mode HTML: Masukkan kode HTML langsung (iframe YouTube, dll)'
+                  : 'Mode WYSIWYG: Editor visual dengan toolbar'}
+              </p>
+              {isHTMLMode && (
+                <p className="text-xs text-blue-600">
+                  💡 Tips: Paste iframe YouTube atau HTML lainnya di sini
+                </p>
+              )}
+            </div>
+          </div>
 
           {/* Image URL */}
           <div className="bg-white rounded-lg shadow-sm p-6">
             <label className="block text-sm font-semibold text-gray-900 mb-2">
               <ImageIcon className="inline w-4 h-4 mr-1" />
-              URL Gambar (Google Drive)
+              URL Gambar
             </label>
             <input
               type="url"
               name="imageUrl"
               value={formData.imageUrl}
               onChange={handleChange}
-              placeholder="https://drive.google.com/..."
+              placeholder="https://example.com/image.jpg"
               className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-colors"
             />
             <p className="mt-1 text-xs text-gray-500">
-              Upload gambar ke Google Drive dan paste link share-nya di sini
+              Paste URL gambar (Google Drive, ImgBB, dll)
             </p>
 
             {/* Image Preview */}
@@ -408,10 +487,7 @@ export default function NewsForm() {
           </div>
 
           {/* Action Buttons */}
-          <div
-            className="flex flex-col sm:flex-row gap-3 sm:gap-4 sticky bottom-0 bg-gray-50 p-4 sm:p-6 -mx-6 -mb-6 border-t border-gray-200"
-          >
-            {/* Tombol Batal */}
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 sticky bottom-0 bg-gray-50 p-4 sm:p-6 -mx-6 -mb-6 border-t border-gray-200">
             <button
               type="button"
               onClick={() => navigate('/admin/berita')}
@@ -420,7 +496,6 @@ export default function NewsForm() {
               Batal
             </button>
 
-            {/* Tombol Draft */}
             <button
               type="button"
               onClick={(e) => handleSubmit(e, true)}
@@ -430,7 +505,6 @@ export default function NewsForm() {
               Simpan sebagai Draft
             </button>
 
-            {/* Tombol Publish */}
             <button
               type="submit"
               disabled={loading}
@@ -449,7 +523,6 @@ export default function NewsForm() {
               )}
             </button>
           </div>
-
         </form>
       </div>
     </div>

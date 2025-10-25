@@ -355,7 +355,7 @@ router.get("/public/list", async (req: Request, res: Response, next: NextFunctio
 /**
  * GET /api/news/public/:slug - Get published news by slug (Frontend)
  */
-router.get("/public/:slug", async (req: Request, res: Response, next: NextFunction) => {
+router.get("/slug/:slug", async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { slug } = req.params;
 

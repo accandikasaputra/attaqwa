@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Plus, Eye, Trash2, Send, Search, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Pagination } from "@/components/Pagination";
 import {
   Table,
   TableBody,
@@ -54,6 +55,9 @@ export default function DonationList() {
     donorType: "",
     donationType: "",
     search: "",
+    page: 1,
+    limit: 10, // Add limit
+
   });
   const [showFilters, setShowFilters] = useState(false);
 
@@ -68,6 +72,10 @@ export default function DonationList() {
     queryKey: ["donations", filters],
     queryFn: () => getDonations(filters),
   });
+
+  const donations = data?.data || [];
+  const pagination = data?.pagination;
+  
 
   const deleteMutation = useMutation({
     mutationFn: deleteDonation,
@@ -288,8 +296,18 @@ export default function DonationList() {
             )}
           </TableBody>
         </Table>
+        {/* Pagination */}
+        {pagination && (
+          <Pagination
+            currentPage={pagination.page}
+            totalPages={pagination.totalPages}
+            total={pagination.total}
+            limit={pagination.limit}
+            onPageChange={(page) => setFilters({ ...filters, page })}
+          />
+        )}
       </div>
-
+      
       {/* Dialogs */}
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
